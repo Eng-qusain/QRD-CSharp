@@ -418,7 +418,7 @@ public class PdfBuilder
         return result;
     }
 
-    private static Color ParseColor(string hex)
+    private static MigraDoc.DocumentObjectModel.Color ParseColor(string hex)
     {
         hex = hex.TrimStart('#');
         if (hex.Length == 6)
@@ -426,9 +426,9 @@ public class PdfBuilder
             var r = Convert.ToByte(hex[..2], 16);
             var g = Convert.ToByte(hex[2..4], 16);
             var b = Convert.ToByte(hex[4..6], 16);
-            return Color.FromRgb(r, g, b);
+            return MigraDoc.DocumentObjectModel.Color.FromRgb(r, g, b);
         }
-        return Colors.Black;
+        return MigraDoc.DocumentObjectModel.Colors.Black;
     }
 
     private static string SanitizeFileName(string name)

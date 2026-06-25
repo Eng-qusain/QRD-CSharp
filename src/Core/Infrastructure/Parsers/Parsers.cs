@@ -1,5 +1,4 @@
 using System.Data;
-using System.Drawing;
 using System.Globalization;
 using CsvHelper;
 
@@ -128,7 +127,7 @@ public class ImageParser
     {
         try
         {
-            using var img = Image.FromFile(filePath);
+            using var img = System.Drawing.Image.FromFile(filePath);
             return new ImageMeta
             {
                 FilePath = filePath,
