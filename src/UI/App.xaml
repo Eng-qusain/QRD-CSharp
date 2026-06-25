@@ -1,0 +1,115 @@
+<Application x:Class="QRD.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+
+        <!-- ── Colour Palette ──────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AccentBrush"  Color="#0969DA"/>
+        <SolidColorBrush x:Key="BgBrush"      Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#F6F8FA"/>
+        <SolidColorBrush x:Key="BorderBrush"  Color="#D0D7DE"/>
+        <SolidColorBrush x:Key="TextBrush"    Color="#1A1A2E"/>
+        <SolidColorBrush x:Key="MutedBrush"   Color="#8B949E"/>
+
+        <!-- ── Card Border (shared across all pages) ───────────────────────── -->
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background"    Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush"   Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius"  Value="8"/>
+            <Setter Property="Padding"       Value="16"/>
+        </Style>
+
+        <!-- ── Primary Button ─────────────────────────────────────────────── -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background"             Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground"             Value="White"/>
+            <Setter Property="Padding"                Value="16,8"/>
+            <Setter Property="BorderThickness"        Value="0"/>
+            <Setter Property="FontSize"               Value="13"/>
+            <Setter Property="Cursor"                 Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#0860C8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ── Secondary (Outlined) Button ───────────────────────────────── -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderBrush"     Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding"         Value="14,7"/>
+            <Setter Property="FontSize"        Value="13"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#EEF4FF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ── Sidebar Nav Button ─────────────────────────────────────────── -->
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Background"             Value="Transparent"/>
+            <Setter Property="Foreground"             Value="#C9D1D9"/>
+            <Setter Property="BorderThickness"        Value="0"/>
+            <Setter Property="Padding"                Value="14,11"/>
+            <Setter Property="Cursor"                 Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize"               Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Margin="4,2"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#21262D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Application.Resources>
+</Application>

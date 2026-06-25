@@ -1,0 +1,211 @@
+<Page x:Class="QRD.UI.Views.ExportPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource BgBrush}">
+
+    <Page.Resources>
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer>
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                <TextBlock Text="Export Documentation" FontSize="24" FontWeight="Bold"
+                           Foreground="{StaticResource TextBrush}"/>
+                <TextBlock Text="Configure and generate PDF documentation for your project."
+                           Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Project / Output paths -->
+            <Border Grid.Row="1" Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Project" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ProjectPathBox" Padding="10,8"
+                                 BorderBrush="{StaticResource BorderBrush}"
+                                 Margin="0,0,8,0" ToolTip="Path to the project folder to document"/>
+                        <Button Grid.Column="1" Content="Browse…"
+                                Style="{StaticResource SecondaryButton}"
+                                Click="BrowseProject_Click"/>
+                    </Grid>
+                    <TextBlock Text="Output Folder" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="OutputPathBox" Padding="10,8"
+                                 BorderBrush="{StaticResource BorderBrush}"
+                                 Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Content="Browse…"
+                                Style="{StaticResource SecondaryButton}"
+                                Click="BrowseOutput_Click"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Export mode -->
+            <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Export Mode" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                    <UniformGrid Columns="2" Rows="2">
+                        <RadioButton x:Name="ModeSingle" IsChecked="True" Margin="0,0,8,8">
+                            <StackPanel>
+                                <TextBlock Text="A — Single PDF" FontWeight="SemiBold"/>
+                                <TextBlock Text="One combined PDF for the whole project"
+                                           FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ModeFolder" Margin="0,0,8,8">
+                            <StackPanel>
+                                <TextBlock Text="B — Per-Folder PDFs" FontWeight="SemiBold"/>
+                                <TextBlock Text="One PDF per top-level folder"
+                                           FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ModeFile" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock Text="C — Per-File PDFs" FontWeight="SemiBold"/>
+                                <TextBlock Text="One PDF per source file"
+                                           FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ModePackage" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock Text="D — Full Package" FontWeight="SemiBold"/>
+                                <TextBlock Text="Combined + per-folder PDFs"
+                                           FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <!-- Options -->
+            <Border Grid.Row="3" Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Content toggles -->
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Content" FontWeight="SemiBold" Margin="0,0,0,8"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <CheckBox x:Name="IncludeAi"     Content="AI Summaries"       IsChecked="True" Margin="0,4"/>
+                        <CheckBox x:Name="IncludeToc"    Content="Table of Contents"   IsChecked="True" Margin="0,4"/>
+                        <CheckBox x:Name="IncludeStats"  Content="Project Statistics"  IsChecked="True" Margin="0,4"/>
+                        <CheckBox x:Name="IncludeCharts" Content="Charts"              IsChecked="True" Margin="0,4"/>
+                    </StackPanel>
+
+                    <!-- Code toggles -->
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Code" FontWeight="SemiBold" Margin="0,0,0,8"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <CheckBox x:Name="SyntaxHighlight" Content="Syntax Highlighting" IsChecked="True" Margin="0,4"/>
+                        <CheckBox x:Name="LineNumbers"     Content="Line Numbers"        IsChecked="True" Margin="0,4"/>
+                    </StackPanel>
+
+                    <!-- Theme / Paper / Orientation -->
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,4"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <!-- v2: explicit named values matching "default"|"dark"|"github"|"monokai" -->
+                        <ComboBox x:Name="ThemeCombo" SelectedIndex="0" Margin="0,0,0,10">
+                            <ComboBoxItem Content="Default (GitHub Light)" Tag="default"/>
+                            <ComboBoxItem Content="Dark (GitHub Dark)"     Tag="dark"/>
+                            <ComboBoxItem Content="GitHub"                 Tag="github"/>
+                            <ComboBoxItem Content="Monokai"                Tag="monokai"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Paper Size" FontWeight="SemiBold" Margin="0,0,0,4"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <!-- v2: "A4"|"Letter"|"A3" -->
+                        <ComboBox x:Name="PaperCombo" SelectedIndex="0" Margin="0,0,0,10">
+                            <ComboBoxItem Content="A4"     Tag="A4"/>
+                            <ComboBoxItem Content="Letter" Tag="Letter"/>
+                            <ComboBoxItem Content="A3"     Tag="A3"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Orientation" FontWeight="SemiBold" Margin="0,0,0,4"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <!-- v2: "portrait"|"landscape" -->
+                        <ComboBox x:Name="OrientationCombo" SelectedIndex="0">
+                            <ComboBoxItem Content="Portrait"  Tag="portrait"/>
+                            <ComboBoxItem Content="Landscape" Tag="landscape"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Action + Progress -->
+            <Border Grid.Row="4" Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <!-- Progress bar (visible during export) -->
+                    <Grid x:Name="ProgressPanel" Visibility="Collapsed" Margin="0,0,0,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <ProgressBar x:Name="ExportProgress" Height="8" Minimum="0" Maximum="100"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     Background="{StaticResource BorderBrush}"/>
+                        <TextBlock x:Name="ExportStatus" Grid.Row="1" Margin="0,6,0,0"
+                                   Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                    </Grid>
+
+                    <!-- Output file links (visible after completion) -->
+                    <StackPanel x:Name="OutputFilesPanel" Visibility="Collapsed" Margin="0,0,0,12">
+                        <TextBlock Text="Output Files:" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <ItemsControl x:Name="OutputFilesList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               FontFamily="Courier New" FontSize="11"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               Cursor="Hand"
+                                               MouseLeftButtonUp="OpenOutputFile"
+                                               Margin="0,2" TextDecorations="Underline"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Buttons -->
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="ExportButton" Content="▶  Start Export"
+                                Style="{StaticResource PrimaryButton}"
+                                Click="StartExport_Click" Margin="0,0,8,0"/>
+                        <Button x:Name="CancelButton" Content="Cancel"
+                                Style="{StaticResource SecondaryButton}"
+                                Click="Cancel_Click" Visibility="Collapsed"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,111 @@
+<Page x:Class="QRD.UI.Views.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource BgBrush}">
+
+    <ScrollViewer>
+        <StackPanel Margin="24">
+            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold"
+                       Foreground="{StaticResource TextBrush}" Margin="0,0,0,24"/>
+
+            <!-- AI Settings -->
+            <Border Padding="20" Margin="0,0,0,16" CornerRadius="8"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="AI Configuration" FontWeight="Bold" FontSize="15"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Anthropic API Key" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox x:Name="AnthropicKeyBox" Padding="10,8" Margin="0,0,0,12"
+                             BorderBrush="{StaticResource BorderBrush}"
+                             ToolTip="Get your key at console.anthropic.com"/>
+
+                    <TextBlock Text="OpenAI API Key (fallback)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox x:Name="OpenAiKeyBox" Padding="10,8" Margin="0,0,0,12"
+                             BorderBrush="{StaticResource BorderBrush}"/>
+
+                    <TextBlock Text="AI Model" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="ModelCombo" Margin="0,0,0,12">
+                        <ComboBoxItem Content="claude-3-5-haiku-20241022" IsSelected="True"/>
+                        <ComboBoxItem Content="claude-3-5-sonnet-20241022"/>
+                        <ComboBoxItem Content="claude-opus-4-6"/>
+                        <ComboBoxItem Content="gpt-4o-mini"/>
+                    </ComboBox>
+
+                    <TextBlock Text="Note: API keys are stored in appsettings.json in the app directory."
+                               FontSize="11" Foreground="{StaticResource MutedBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                    <Button Content="Save AI Settings" Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Left" Click="SaveAiSettings_Click"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Paths -->
+            <Border Padding="20" Margin="0,0,0,16" CornerRadius="8"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Paths" FontWeight="Bold" FontSize="15"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Default Output Folder" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="OutputDirBox" Padding="10,8"
+                                 BorderBrush="{StaticResource BorderBrush}" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Content="Browse…"
+                                Style="{StaticResource SecondaryButton}"
+                                Click="BrowseOutputDir_Click"/>
+                    </Grid>
+
+                    <Button Content="Save Path Settings" Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Left" Click="SavePathSettings_Click"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Performance -->
+            <Border Padding="20" Margin="0,0,0,16" CornerRadius="8"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Performance" FontWeight="Bold" FontSize="15"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Max Concurrent AI Workers" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <Slider x:Name="WorkerSlider" Minimum="1" Maximum="8" Value="3"
+                            TickPlacement="BottomRight" TickFrequency="1"
+                            IsSnapToTickEnabled="True" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="WorkerLabel" Text="Workers: 3"
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+
+                    <TextBlock Text="Max File Size (MB)" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                    <Slider x:Name="MaxFileSizeSlider" Minimum="1" Maximum="200" Value="50"
+                            TickPlacement="BottomRight" TickFrequency="10"
+                            IsSnapToTickEnabled="True" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="MaxFileSizeLabel" Text="50 MB"
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                </StackPanel>
+            </Border>
+
+            <!-- About -->
+            <Border Padding="20" CornerRadius="8"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="About" FontWeight="Bold" FontSize="15"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+                    <TextBlock Text="QRD — Quantum Repo Documenter v1.0.0" Margin="0,0,0,2"/>
+                    <TextBlock Text="C# / .NET 8 / WPF + ASP.NET Core" FontSize="12"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,0,0,2"/>
+                    <TextBlock Text="Rebuilt from Python (FastAPI) + Electron original"
+                               FontSize="12" Foreground="{StaticResource MutedBrush}"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
