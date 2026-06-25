@@ -18,9 +18,12 @@ Download from https://git-scm.com/download/win and install with default settings
 6. GitHub will show you a URL like `https://github.com/YOUR_NAME/QRD.git` — copy it
 
 ### Step 3: Push the project
-Open a terminal (PowerShell or CMD) in the `QRD-CSharp` folder:
+
+> **Important**: open a terminal (PowerShell or CMD) **inside the `QRD-CSharp` folder**
+> (the one that contains `QRD.csproj` directly). That folder becomes the root of your repo.
 
 ```powershell
+cd path\to\QRD-CSharp        # ← go INTO this folder first
 git init
 git add .
 git commit -m "Initial commit — C# rebuild of QRD"
@@ -30,6 +33,7 @@ git push -u origin main
 ```
 
 That's it. Your code is now on GitHub.
+After this, GitHub sees `QRD.csproj` at the root of the repo — which is exactly what the CI expects.
 
 ---
 
@@ -99,14 +103,13 @@ cd QRD
 ### Daily workflow
 ```powershell
 # Download packages (only needed once, or when csproj changes)
-dotnet restore QRD-CSharp/QRD.csproj
+dotnet restore QRD.csproj
 
 # Run in development (builds and launches the app)
-cd QRD-CSharp
 dotnet run
 
 # Build release .exe
-dotnet publish QRD-CSharp/QRD.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/
+dotnet publish QRD.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/
 # Your installer is at: publish/QRD.exe
 ```
 

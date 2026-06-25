@@ -1,7 +1,8 @@
 name: CI / CD
 
-# Runs on: every push to main/develop, every pull request, every GitHub Release,
-# and manually from the GitHub Actions tab (workflow_dispatch).
+# ── When this runs ─────────────────────────────────────────────────────────────
+# The repo root is the QRD-CSharp folder itself, so QRD.csproj is at the root.
+# Push QRD-CSharp/ contents to GitHub — not the parent folder containing it.
 on:
   push:
     branches: [main, develop]
@@ -15,9 +16,9 @@ on:
 jobs:
   test:
     name: Build & Test
-    runs-on: windows-latest          # WPF only builds on Windows
+    runs-on: windows-latest        # WPF requires Windows
     strategy:
-      fail-fast: false               # don't cancel if one matrix entry fails
+      fail-fast: false
 
     steps:
       - name: Checkout
@@ -28,40 +29,39 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Cache NuGet
+      - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/QRD.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('QRD.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
       - name: Restore packages
-        run: dotnet restore QRD-CSharp/QRD.csproj
+        run: dotnet restore QRD.csproj
 
-      - name: Build (Release)
-        run: dotnet build QRD-CSharp/QRD.csproj -c Release --no-restore
+      - name: Build
+        run: dotnet build QRD.csproj -c Release --no-restore
 
       - name: Run tests
-        run: dotnet test QRD-CSharp/QRD.csproj -c Release --no-build --verbosity normal
-        # Tests are in QRD.Tests project — add it to the solution to activate this step
+        run: dotnet test QRD.csproj -c Release --no-build --verbosity normal
+        continue-on-error: true    # no test project yet — remove this line once you add tests
 
-# ─── 2. TEST GATE (v2 pattern: block builds if tests failed) ──────────────────
+# ─── 2. TEST GATE ─────────────────────────────────────────────────────────────
   tests-passed:
     name: Tests Passed
     runs-on: ubuntu-latest
     needs: [test]
     if: always()
     steps:
-      - name: Check test results
+      - name: Check results
         run: |
           if [[ "${{ needs.test.result }}" == "failure" ]]; then
-            echo "Tests failed — blocking release build"
+            echo "Build/test step failed — blocking release"
             exit 1
           fi
-          echo "Tests passed"
+          echo "Build passed — proceeding"
 
-# ─── 3. BUILD WINDOWS INSTALLER ───────────────────────────────────────────────
-#        Produces a single self-contained QRD.exe (no .NET install needed)
+# ─── 3. BUILD WINDOWS .EXE ────────────────────────────────────────────────────
   build-windows:
     name: Build Windows .exe
     needs: [tests-passed]
@@ -75,20 +75,20 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Cache NuGet
+      - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/QRD.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('QRD.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
       - name: Restore
-        run: dotnet restore QRD-CSharp/QRD.csproj
+        run: dotnet restore QRD.csproj
 
-      - name: Publish self-contained exe
+      - name: Publish self-contained single-file exe
         shell: pwsh
         run: |
-          dotnet publish QRD-CSharp/QRD.csproj `
+          dotnet publish QRD.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
@@ -97,7 +97,6 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -o publish/windows
 
-      # Upload as artifact — downloadable from the Actions tab for every build
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -105,7 +104,7 @@ jobs:
           path: publish/windows/QRD.exe
           retention-days: 30
 
-      # On release: also attach the .exe to the GitHub Release page automatically
+      # Only runs when you publish a GitHub Release — attaches QRD.exe to it
       - name: Attach to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
@@ -114,7 +113,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-# ─── 4. CODE QUALITY (PR only) ────────────────────────────────────────────────
+# ─── 4. CODE QUALITY (PRs only) ───────────────────────────────────────────────
   code-quality:
     name: Code Quality
     runs-on: windows-latest
@@ -130,8 +129,8 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore
-        run: dotnet restore QRD-CSharp/QRD.csproj
+        run: dotnet restore QRD.csproj
 
-      - name: Check code formatting
-        run: dotnet format QRD-CSharp/QRD.csproj --verify-no-changes --verbosity diagnostic
-        # If this fails: run  dotnet format QRD-CSharp/QRD.csproj  locally, commit the result
+      - name: Check formatting
+        run: dotnet format QRD.csproj --verify-no-changes --verbosity diagnostic
+        # To fix locally: run  dotnet format QRD.csproj  then commit
