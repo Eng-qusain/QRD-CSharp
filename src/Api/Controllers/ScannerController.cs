@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using QRD.Core.Services;
 
@@ -27,7 +28,7 @@ public class ScannerController(ProjectScannerService scanner) : ControllerBase
             var result = await scanner.ScanAsync(
                 request.Path,
                 request.ExcludePatterns,
-                cancellationToken: ct);
+                ct: ct);
 
             return Ok(new
             {
@@ -112,7 +113,6 @@ public class ScannerController(ProjectScannerService scanner) : ControllerBase
 
     private static object SerializeStats(Core.Domain.Entities.ProjectStats s) => new
     {
-        // v2: category_distribution removed from ProjectStats interface
         total_files            = s.TotalFiles,
         total_directories      = s.TotalDirectories,
         total_lines            = s.TotalLines,

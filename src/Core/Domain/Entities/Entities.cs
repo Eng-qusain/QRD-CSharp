@@ -79,7 +79,7 @@ public class FileInfo
 
     private static string MD5Hash(string input)
     {
-        var bytes = MD5.HashData(Encoding.UTF8.GetBytes(input));
+        var bytes = MD5.HashData(System.Text.Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(bytes).ToLower();
     }
 }
@@ -130,8 +130,8 @@ public record LargestFileEntry(string Path, long Size, int Lines, string Languag
 
 public class AIDocumentation
 {
-    public string FileId { get; init; } = "";
-    public string FilePath { get; init; } = "";
+    public string FileId { get; set; } = "";
+    public string FilePath { get; set; } = "";
     public string Summary { get; set; } = "";
     public string Purpose { get; set; } = "";
     public List<string> KeyFunctions { get; set; } = [];

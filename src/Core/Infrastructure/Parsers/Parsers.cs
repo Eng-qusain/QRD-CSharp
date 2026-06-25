@@ -1,6 +1,7 @@
 using System.Data;
 using System.Globalization;
 using CsvHelper;
+using ExcelDataReader;
 
 namespace QRD.Core.Infrastructure.Parsers;
 

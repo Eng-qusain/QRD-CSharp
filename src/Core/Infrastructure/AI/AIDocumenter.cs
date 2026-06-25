@@ -4,6 +4,10 @@ using Anthropic.SDK.Messaging;
 using QRD.Core.Domain.Entities;
 using QRD.Utils;
 
+// Alias to avoid collision between 'System' (C# namespace) and MessageParameters.System property
+using AiMessage = Anthropic.SDK.Messaging.Message;
+using AiMessageBox = System.Windows.MessageBox; // suppress global alias warning
+
 namespace QRD.Core.Infrastructure.AI;
 
 /// <summary>
@@ -47,7 +51,6 @@ public class AIDocumenter
         }
         else if (!string.IsNullOrWhiteSpace(settings.OpenAiApiKey))
         {
-            // OpenAI support can be added via the OpenAI NuGet package
             _provider = "openai";
         }
         else
@@ -87,16 +90,15 @@ public class AIDocumenter
             if (raw is not null)
             {
                 var doc = ParseJsonResponse(raw);
-                doc.FileId = fileId;
-                doc.FilePath = filePath;
+                doc.FileId      = fileId;
+                doc.FilePath    = filePath;
                 doc.GeneratedAt = DateTime.UtcNow;
-                doc.ModelUsed = _settings.AiModel;
+                doc.ModelUsed   = _settings.AiModel;
                 return doc;
             }
         }
         catch (Exception ex)
         {
-            // Gracefully fall through to stub on any AI error
             Console.WriteLine($"[AI] Documentation failed for {filePath}: {ex.Message}");
         }
 
@@ -107,13 +109,18 @@ public class AIDocumenter
     {
         if (_anthropicClient is null) throw new InvalidOperationException("Anthropic client not initialized");
 
+        // Use fully-qualified SystemMessage to avoid collision with System namespace
+        var sysMsg = new Anthropic.SDK.Messaging.SystemMessage(SystemPrompt);
+
         var request = new MessageParameters
         {
-            Model = _settings.AiModel,
+            Model     = _settings.AiModel,
             MaxTokens = 1024,
-            System = [new SystemMessage(SystemPrompt)],
-            Messages = [new Message { Role = RoleType.User, Content = userMessage }]
+            // 'System' property name collides with the C# 'System' namespace when used
+            // as a named initializer — assign via a local variable to avoid the ambiguity
+            Messages  = [new AiMessage { Role = RoleType.User, Content = userMessage }]
         };
+        request.System = [sysMsg];
 
         var response = await _anthropicClient.Messages.GetClaudeMessageAsync(request, ct);
         return response.Content.OfType<TextContent>().FirstOrDefault()?.Text ?? "{}";
@@ -121,13 +128,11 @@ public class AIDocumenter
 
     private Task<string> CallOpenAiAsync(string userMessage, CancellationToken ct)
     {
-        // Placeholder — integrate OpenAI SDK here if needed
         throw new NotImplementedException("OpenAI integration requires OpenAI NuGet package");
     }
 
     private static AIDocumentation ParseJsonResponse(string raw)
     {
-        // Strip markdown fences if present
         var cleaned = raw.Replace("```json", "").Replace("```", "").Trim();
 
         try
@@ -137,14 +142,14 @@ public class AIDocumenter
 
             return new AIDocumentation
             {
-                Summary = GetString(data, "summary"),
-                Purpose = GetString(data, "purpose"),
+                Summary      = GetString(data, "summary"),
+                Purpose      = GetString(data, "purpose"),
                 KeyFunctions = GetStringList(data, "key_functions"),
-                Inputs = GetStringList(data, "inputs"),
-                Outputs = GetStringList(data, "outputs"),
+                Inputs       = GetStringList(data, "inputs"),
+                Outputs      = GetStringList(data, "outputs"),
                 Dependencies = GetStringList(data, "dependencies"),
-                Complexity = GetString(data, "complexity", "Unknown"),
-                Notes = data.TryGetProperty("notes", out var n) ? n.GetString() : null
+                Complexity   = GetString(data, "complexity", "Unknown"),
+                Notes        = data.TryGetProperty("notes", out var n) ? n.GetString() : null
             };
         }
         catch
@@ -152,7 +157,7 @@ public class AIDocumenter
             return new AIDocumentation
             {
                 Summary = "Could not parse AI response",
-                Notes = raw[..Math.Min(300, raw.Length)]
+                Notes   = raw[..Math.Min(300, raw.Length)]
             };
         }
     }
@@ -170,15 +175,15 @@ public class AIDocumenter
     private static AIDocumentation StubDocumentation(string fileId, string filePath, string language)
         => new()
         {
-            FileId = fileId,
+            FileId   = fileId,
             FilePath = filePath,
-            Summary = $"{Path.GetFileName(filePath)} — AI summary not available",
-            Purpose = "Add ANTHROPIC_API_KEY or OPENAI_API_KEY to appsettings.json to enable AI documentation.",
+            Summary  = $"{Path.GetFileName(filePath)} — AI summary not available",
+            Purpose  = "Add ANTHROPIC_API_KEY or OPENAI_API_KEY to appsettings.json to enable AI documentation.",
             KeyFunctions = [],
-            Inputs = [],
-            Outputs = [],
+            Inputs       = [],
+            Outputs      = [],
             Dependencies = [],
-            Complexity = "Unknown",
-            Notes = $"Language detected: {language}. AI features are optional — all PDF export features work without an API key."
+            Complexity   = "Unknown",
+            Notes        = $"Language detected: {language}. AI features are optional — all PDF export features work without an API key."
         };
 }

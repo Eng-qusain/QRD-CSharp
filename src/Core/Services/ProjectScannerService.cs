@@ -133,10 +133,10 @@ public class ProjectScannerService
         var patterns = DefaultExcludePatterns.Concat(excludePatterns ?? []).ToList();
 
         // Phase 1 — collect paths
-        progress?.Report((5, "Collecting file list…"));
+        progress?.Report((5.0, "Collecting file list…"));
         var allPaths = await Task.Run(() => WalkDirectory(root, patterns, ct), ct);
         var total = allPaths.Count;
-        progress?.Report((8, $"Found {total} files"));
+        progress?.Report((8.0, $"Found {total} files"));
 
         // Phase 2 — process in chunks
         var flatFiles = new List<FileInfo>(total);
@@ -154,15 +154,15 @@ public class ProjectScannerService
         }
 
         // Phase 3 — build tree
-        progress?.Report((92, "Building file tree…"));
+        progress?.Report((92.0, "Building file tree…"));
         var tree = await Task.Run(() => BuildTree(root, flatFiles), ct);
 
         // Phase 4 — stats
-        progress?.Report((97, "Computing statistics…"));
+        progress?.Report((97.0, "Computing statistics…"));
         var stats = ComputeStats(flatFiles);
 
         var durationMs = (DateTime.UtcNow - start).TotalMilliseconds;
-        progress?.Report((100, "Scan complete"));
+        progress?.Report((100.0, "Scan complete"));
 
         return new ProjectScan
         {

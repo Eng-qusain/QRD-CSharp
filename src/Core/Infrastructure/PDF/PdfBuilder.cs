@@ -121,7 +121,7 @@ public class PdfBuilder
     {
         var doc = new Document();
         doc.Info.Title = title;
-        doc.Info.Creator = "QRD — Quantum Repo Documenter";
+        doc.Info.Author = "QRD — Quantum Repo Documenter";
 
         // Default styles
         var normal = doc.Styles["Normal"]!;

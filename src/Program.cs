@@ -1,5 +1,6 @@
 using System.Windows;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using QRD.Core.Infrastructure.AI;
 using QRD.Core.Infrastructure.Parsers;
@@ -70,6 +71,7 @@ public class Program
         builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
             p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
+        // UseUrls requires the Microsoft.AspNetCore.Hosting namespace via IWebHostBuilder
         builder.WebHost.UseUrls($"http://{settings.Host}:{settings.Port}");
 
         var app = builder.Build();

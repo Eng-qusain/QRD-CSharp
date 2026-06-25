@@ -41,4 +41,12 @@
     <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Exclude any .cs files accidentally placed outside src/ (e.g. root-level UI\ or Utils\) -->
+  <ItemGroup>
+    <Compile Remove="UI\**\*.cs" />
+    <Compile Remove="Utils\**\*.cs" />
+    <Compile Remove="Core\**\*.cs" />
+    <Compile Remove="Api\**\*.cs" />
+  </ItemGroup>
+
 </Project>
