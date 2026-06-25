@@ -4,29 +4,24 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>QRD</AssemblyName>
     <RootNamespace>QRD</RootNamespace>
     <Version>1.0.0</Version>
     <StartupObject>QRD.Program</StartupObject>
-    <!-- Suppress nullable warnings from generated WPF code -->
-    <Nullable>enable</Nullable>
-    <WarningsAsErrors />
     <NoWarn>CS8618</NoWarn>
-    <!-- Allow System.Windows.Forms for folder browser dialog -->
-    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- ASP.NET Core embedded API server (no separate process needed) -->
+    <!-- ASP.NET Core embedded API server -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
 
-    <!-- PDF Generation — MigraDoc builds on top of PdfSharp -->
-    <PackageReference Include="PDFsharp-WPF" Version="6.1.1" />
-    <PackageReference Include="MigraDoc.DocumentObjectModel-WPF" Version="6.1.1" />
+    <!-- PDF: one package includes both PDFsharp AND MigraDoc for WPF -->
+    <PackageReference Include="PDFsharp-MigraDoc-WPF" Version="6.2.4" />
 
-    <!-- AI — Anthropic Claude SDK -->
+    <!-- AI -->
     <PackageReference Include="Anthropic.SDK" Version="3.1.0" />
 
     <!-- CSV / Excel parsing -->
@@ -38,12 +33,11 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
 
-    <!-- System.Drawing for image metadata (built into Windows target) -->
+    <!-- Image metadata (System.Drawing) -->
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- appsettings.json is copied next to the .exe -->
     <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

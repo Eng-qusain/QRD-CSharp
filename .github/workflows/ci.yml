@@ -1,8 +1,5 @@
 name: CI / CD
 
-# ── When this runs ─────────────────────────────────────────────────────────────
-# The repo root is the QRD-CSharp folder itself, so QRD.csproj is at the root.
-# Push QRD-CSharp/ contents to GitHub — not the parent folder containing it.
 on:
   push:
     branches: [main, develop]
@@ -16,7 +13,7 @@ on:
 jobs:
   test:
     name: Build & Test
-    runs-on: windows-latest        # WPF requires Windows
+    runs-on: windows-latest
     strategy:
       fail-fast: false
 
@@ -42,9 +39,9 @@ jobs:
       - name: Build
         run: dotnet build QRD.csproj -c Release --no-restore
 
-      - name: Run tests
-        run: dotnet test QRD.csproj -c Release --no-build --verbosity normal
-        continue-on-error: true    # no test project yet — remove this line once you add tests
+      # No test project yet — this step is skipped until you add one
+      # - name: Run tests
+      #   run: dotnet test QRD.csproj -c Release --no-build --verbosity normal
 
 # ─── 2. TEST GATE ─────────────────────────────────────────────────────────────
   tests-passed:
@@ -56,10 +53,10 @@ jobs:
       - name: Check results
         run: |
           if [[ "${{ needs.test.result }}" == "failure" ]]; then
-            echo "Build/test step failed — blocking release"
+            echo "Build failed — blocking release"
             exit 1
           fi
-          echo "Build passed — proceeding"
+          echo "Build passed"
 
 # ─── 3. BUILD WINDOWS .EXE ────────────────────────────────────────────────────
   build-windows:
@@ -104,7 +101,6 @@ jobs:
           path: publish/windows/QRD.exe
           retention-days: 30
 
-      # Only runs when you publish a GitHub Release — attaches QRD.exe to it
       - name: Attach to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
@@ -133,4 +129,3 @@ jobs:
 
       - name: Check formatting
         run: dotnet format QRD.csproj --verify-no-changes --verbosity diagnostic
-        # To fix locally: run  dotnet format QRD.csproj  then commit
