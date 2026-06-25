@@ -6,7 +6,6 @@ using QRD.Utils;
 
 // Alias to avoid collision between 'System' (C# namespace) and MessageParameters.System property
 using AiMessage = Anthropic.SDK.Messaging.Message;
-using AiMessageBox = System.Windows.MessageBox; // suppress global alias warning
 
 namespace QRD.Core.Infrastructure.AI;
 

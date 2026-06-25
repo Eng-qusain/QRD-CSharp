@@ -41,12 +41,35 @@
     <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Exclude any .cs files accidentally placed outside src/ (e.g. root-level UI\ or Utils\) -->
+  <!-- Exclude any stray .cs files at repo root level (not under src/) -->
   <ItemGroup>
     <Compile Remove="UI\**\*.cs" />
     <Compile Remove="Utils\**\*.cs" />
     <Compile Remove="Core\**\*.cs" />
     <Compile Remove="Api\**\*.cs" />
+  </ItemGroup>
+
+  <!--
+    Exclude non-XAML-codebehind files from the WPF SDK temp project (wpftmp.csproj).
+    The WPF SDK generates a temp project to compile XAML and includes ALL Compile items.
+    Non-XAML files (services, controllers, entities, etc.) get compiled twice → CS0101.
+    Setting ExcludeFromWpfTempProject=true on them prevents the double-compilation.
+    XAML code-behinds (App.xaml.cs, *Window.xaml.cs, *Page.xaml.cs) are left as-is.
+  -->
+  <ItemGroup>
+    <Compile Update="src\Program.cs"                                   ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\GlobalUsings.cs"                              ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Utils\AppSettings.cs"                        ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Api\Controllers\ExportController.cs"        ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Api\Controllers\HealthController.cs"        ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Api\Controllers\ScannerController.cs"       ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Domain\Entities\Entities.cs"          ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Infrastructure\AI\AIDocumenter.cs"    ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Infrastructure\PDF\PdfBuilder.cs"     ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Infrastructure\Parsers\Parsers.cs"    ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Infrastructure\Storage\TempManager.cs" ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Services\ExportOrchestratorService.cs" ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Services\ProjectScannerService.cs"     ExcludeFromWpfTempProject="true" />
   </ItemGroup>
 
 </Project>

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using QRD.Utils;
+using MessageBox = System.Windows.MessageBox;
 
 namespace QRD.UI.Views;
 

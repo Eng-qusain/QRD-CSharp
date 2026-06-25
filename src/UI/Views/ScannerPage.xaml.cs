@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using QRD.Utils;
+using MessageBox   = System.Windows.MessageBox;
+using Orientation  = System.Windows.Controls.Orientation;
 
 namespace QRD.UI.Views;
 

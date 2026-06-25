@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using QRD.Utils;
+using Color = System.Windows.Media.Color;
 
 namespace QRD.UI.Views;
 
