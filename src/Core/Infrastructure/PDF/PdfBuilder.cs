@@ -8,29 +8,69 @@ namespace QRD.Core.Infrastructure.PDF;
 
 /// <summary>
 /// PDF generation engine using MigraDoc/PdfSharp.
-/// Produces professional, well-formatted documentation PDFs.
+///
+/// Document order:
+///   1. Cover page  — project name, LOC stats, language breakdown
+///   2. README      — rendered verbatim if found (root files first, then sub-folders)
+///   3. TOC         — file list grouped by folder
+///   4. File tree   — ASCII directory tree
+///   5. Stats page  — tables + language distribution
+///   6. Files       — root files first (alphabetical), then sub-folders alphabetically
+///                    Each file: shaded header, metadata strip, syntax-highlighted code
 /// </summary>
 public class PdfBuilder
 {
-    // ── Themes ───────────────────────────────────────────────────────────────
+    // ── Themes ────────────────────────────────────────────────────────────────
 
     public static readonly Dictionary<string, PdfTheme> Themes = new()
     {
-        ["default"] = new PdfTheme("#ffffff", "#1a1a2e", "#f6f8fa", "#24292e",
-                                   "#0969da", "#0969da", "#d0d7de", "#6e7681", "#0969da", "#ffffff",
-                                   "#f0f6ff", "#dbeafe"),
-        ["dark"]    = new PdfTheme("#0d1117", "#c9d1d9", "#161b22", "#c9d1d9",
-                                   "#58a6ff", "#58a6ff", "#30363d", "#8b949e", "#161b22", "#58a6ff",
-                                   "#1f2937", "#1e3a5f"),
-        ["github"]  = new PdfTheme("#ffffff", "#24292e", "#f6f8fa", "#24292e",
-                                   "#0366d6", "#24292e", "#e1e4e8", "#6a737d", "#24292e", "#ffffff",
-                                   "#f1f8ff", "#dbedff"),
-        ["monokai"] = new PdfTheme("#272822", "#f8f8f2", "#1e1f1c", "#f8f8f2",
-                                   "#66d9e8", "#a6e22e", "#49483e", "#75715e", "#1e1f1c", "#a6e22e",
-                                   "#2d2e27", "#383830"),
+        ["default"] = new PdfTheme(
+            Bg:          "#ffffff", Text:       "#1a1a2e",
+            CodeBg:      "#f6f8fa", CodeText:   "#24292e",
+            Accent:      "#0969da", Heading:    "#0969da",
+            Border:      "#d0d7de", LineNum:    "#6e7681",
+            HeaderBg:    "#0969da", HeaderText: "#ffffff",
+            AccentLight: "#f0f6ff", RowAlt:     "#f6f8fa",
+            // Syntax colours (default = GitHub light)
+            Kw:    "#cf222e", Str:   "#0a3069", Num:   "#0550ae",
+            Cmt:   "#6e7681", Type:  "#953800", Fn:    "#8250df",
+            Op:    "#0969da", Prep:  "#0969da"),
+
+        ["dark"] = new PdfTheme(
+            Bg:          "#0d1117", Text:       "#c9d1d9",
+            CodeBg:      "#161b22", CodeText:   "#c9d1d9",
+            Accent:      "#58a6ff", Heading:    "#58a6ff",
+            Border:      "#30363d", LineNum:    "#8b949e",
+            HeaderBg:    "#161b22", HeaderText: "#58a6ff",
+            AccentLight: "#1f2937", RowAlt:     "#161b22",
+            Kw:    "#ff7b72", Str:   "#a5d6ff", Num:   "#79c0ff",
+            Cmt:   "#8b949e", Type:  "#ffa657", Fn:    "#d2a8ff",
+            Op:    "#58a6ff", Prep:  "#58a6ff"),
+
+        ["github"] = new PdfTheme(
+            Bg:          "#ffffff", Text:       "#24292e",
+            CodeBg:      "#f6f8fa", CodeText:   "#24292e",
+            Accent:      "#0366d6", Heading:    "#24292e",
+            Border:      "#e1e4e8", LineNum:    "#6a737d",
+            HeaderBg:    "#24292e", HeaderText: "#ffffff",
+            AccentLight: "#f1f8ff", RowAlt:     "#f6f8fa",
+            Kw:    "#d73a49", Str:   "#032f62", Num:   "#005cc5",
+            Cmt:   "#6a737d", Type:  "#e36209", Fn:    "#6f42c1",
+            Op:    "#0366d6", Prep:  "#0366d6"),
+
+        ["monokai"] = new PdfTheme(
+            Bg:          "#272822", Text:       "#f8f8f2",
+            CodeBg:      "#1e1f1c", CodeText:   "#f8f8f2",
+            Accent:      "#66d9e8", Heading:    "#a6e22e",
+            Border:      "#49483e", LineNum:    "#75715e",
+            HeaderBg:    "#1e1f1c", HeaderText: "#a6e22e",
+            AccentLight: "#2d2e27", RowAlt:     "#272822",
+            Kw:    "#f92672", Str:   "#e6db74", Num:   "#ae81ff",
+            Cmt:   "#75715e", Type:  "#66d9e8", Fn:    "#a6e22e",
+            Op:    "#f92672", Prep:  "#66d9e8"),
     };
 
-    // ── Build Methods ─────────────────────────────────────────────────────────
+    // ── Public build entry points ─────────────────────────────────────────────
 
     public async Task<string> BuildSinglePdfAsync(
         ProjectScan scan,
@@ -41,26 +81,42 @@ public class PdfBuilder
         CancellationToken ct = default)
     {
         var theme = Themes.GetValueOrDefault(options.ThemeKey, Themes["default"]);
-        var doc = CreateDocument(scan.ProjectName, theme, options);
-        var section = doc.AddSection();
+        var doc   = CreateDocument(scan.ProjectName, theme, options);
+        var sec   = doc.AddSection();
 
-        AddCoverPage(section, scan, theme);
+        // 1 — Cover
+        AddCoverPage(sec, scan, theme);
 
+        // 2 — README (if present)
+        var readmeFile = scan.FlatFiles.FirstOrDefault(f =>
+            Path.GetFileName(f.RelativePath).Equals("README.md", StringComparison.OrdinalIgnoreCase) ||
+            Path.GetFileName(f.RelativePath).Equals("README.txt", StringComparison.OrdinalIgnoreCase) ||
+            Path.GetFileName(f.RelativePath).Equals("README",     StringComparison.OrdinalIgnoreCase));
+
+        if (readmeFile is not null)
+            await AddReadmeSectionAsync(sec, readmeFile, theme);
+
+        // 3 — TOC
         if (options.IncludeToc)
-            AddTableOfContents(section, scan, theme);
+            AddTableOfContents(sec, scan, theme);
 
+        // 4 — File tree
+        AddFileTreeSection(sec, scan, theme);
+
+        // 5 — Stats
         if (options.IncludeStats)
-            AddStatsSection(section, scan.Stats, theme);
+            AddStatsSection(sec, scan.Stats, theme);
 
-        var files = FilterFiles(scan.FlatFiles, options);
-        var total = files.Count;
-        var done = 0;
+        // 6 — Files: root first, then sub-folders alphabetically
+        var orderedFiles = OrderedFiles(FilterFiles(scan.FlatFiles, options));
+        var total = orderedFiles.Count;
+        var done  = 0;
 
-        foreach (var file in files)
+        foreach (var file in orderedFiles)
         {
             ct.ThrowIfCancellationRequested();
             var aiDoc = aiDocs.GetValueOrDefault(file.Id);
-            await AddFileSectionAsync(section, file, aiDoc, options, theme);
+            await AddFileSectionAsync(sec, file, aiDoc, options, theme);
             done++;
             progress?.Report((done / (double)total * 100, file.RelativePath));
         }
@@ -80,22 +136,25 @@ public class PdfBuilder
         var folders = scan.FileTree.ChildrenDirs;
         var idx = 0;
 
-        foreach (var folder in folders)
+        foreach (var folder in folders.OrderBy(f => f.Name))
         {
             ct.ThrowIfCancellationRequested();
-            var folderFiles = GetAllFiles(folder).Where(f => !f.IsBinary || f.Category == FileCategory.Visual).ToList();
+            var folderFiles = GetAllFiles(folder)
+                .Where(f => !f.IsBinary || f.Category == FileCategory.Visual)
+                .ToList();
             if (folderFiles.Count == 0) { idx++; continue; }
 
             var theme = Themes.GetValueOrDefault(options.ThemeKey, Themes["default"]);
-            var doc = CreateDocument(folder.Name, theme, options);
-            var section = doc.AddSection();
-            AddCoverPage(section, scan, theme, subtitle: $"Module: {folder.Name}");
+            var doc   = CreateDocument(folder.Name, theme, options);
+            var sec   = doc.AddSection();
+            AddCoverPage(sec, scan, theme, subtitle: $"Module: {folder.Name}");
+            AddFileTreeSection(sec, scan, theme, rootNode: folder);
 
-            foreach (var file in folderFiles)
+            foreach (var file in OrderedFiles(folderFiles))
             {
                 ct.ThrowIfCancellationRequested();
                 var aiDoc = aiDocs.GetValueOrDefault(file.Id);
-                await AddFileSectionAsync(section, file, aiDoc, options, theme);
+                await AddFileSectionAsync(sec, file, aiDoc, options, theme);
             }
 
             var outPath = Path.Combine(outputDir, $"{SanitizeFileName(folder.Name)}.pdf");
@@ -107,305 +166,398 @@ public class PdfBuilder
         return outputs;
     }
 
-    // ── Document Setup ────────────────────────────────────────────────────────
+    // ── Document styles ───────────────────────────────────────────────────────
 
     private static Document CreateDocument(string title, PdfTheme theme, ExportOptions options)
     {
         var doc = new Document();
-        doc.Info.Title = title;
+        doc.Info.Title  = title;
         doc.Info.Author = "QRD — Quantum Repo Documenter";
 
-        // Page setup — tighter margins for denser content
         doc.DefaultPageSetup.TopMargin    = "1.8cm";
         doc.DefaultPageSetup.BottomMargin = "2.0cm";
         doc.DefaultPageSetup.LeftMargin   = "2.0cm";
         doc.DefaultPageSetup.RightMargin  = "2.0cm";
 
-        // ── Normal / body ────────────────────────────────────────────────────
         var normal = doc.Styles["Normal"]!;
-        normal.Font.Name = "Arial";
-        normal.Font.Size = options.FontSize;
+        normal.Font.Name  = "Arial";
+        normal.Font.Size  = options.FontSize;
         normal.Font.Color = ParseColor(theme.Text);
         normal.ParagraphFormat.LineSpacingRule = LineSpacingRule.Multiple;
-        normal.ParagraphFormat.LineSpacing = 1.15;
+        normal.ParagraphFormat.LineSpacing     = 1.15;
 
-        // ── Heading 1 — section title (cover page, stats, etc.) ──────────────
         var h1 = doc.Styles["Heading1"]!;
-        h1.Font.Name = "Arial";
-        h1.Font.Size = 20;
-        h1.Font.Bold = true;
+        h1.Font.Name  = "Arial"; h1.Font.Size = 20; h1.Font.Bold = true;
         h1.Font.Color = ParseColor(theme.Accent);
-        h1.ParagraphFormat.SpaceBefore = "6pt";
-        h1.ParagraphFormat.SpaceAfter  = "4pt";
+        h1.ParagraphFormat.SpaceBefore = "6pt"; h1.ParagraphFormat.SpaceAfter = "4pt";
 
-        // ── Heading 2 — file name headers ────────────────────────────────────
         var h2 = doc.Styles["Heading2"]!;
-        h2.Font.Name = "Arial";
-        h2.Font.Size = 11;
-        h2.Font.Bold = true;
+        h2.Font.Name  = "Arial"; h2.Font.Size = 13; h2.Font.Bold = true;
         h2.Font.Color = ParseColor(theme.Heading);
-        h2.ParagraphFormat.SpaceBefore = "10pt";
-        h2.ParagraphFormat.SpaceAfter  = "3pt";
+        h2.ParagraphFormat.SpaceBefore = "8pt"; h2.ParagraphFormat.SpaceAfter = "3pt";
 
-        // ── Heading 3 — sub-section labels inside a file ─────────────────────
         var h3 = doc.AddStyle("Heading3", "Normal");
-        h3.Font.Name = "Arial";
-        h3.Font.Size = options.FontSize;
-        h3.Font.Bold = true;
+        h3.Font.Name  = "Arial"; h3.Font.Size = options.FontSize; h3.Font.Bold = true;
         h3.Font.Color = ParseColor(theme.Heading);
-        h3.ParagraphFormat.SpaceBefore = "6pt";
-        h3.ParagraphFormat.SpaceAfter  = "2pt";
+        h3.ParagraphFormat.SpaceBefore = "5pt"; h3.ParagraphFormat.SpaceAfter = "2pt";
 
-        // ── Code ─────────────────────────────────────────────────────────────
         var code = doc.AddStyle("Code", "Normal");
-        code.Font.Name = "Courier New";
-        code.Font.Size = Math.Max(6, options.FontSize - 1);
+        code.Font.Name  = "Courier New";
+        code.Font.Size  = Math.Max(6, options.FontSize - 1);
         code.Font.Color = ParseColor(theme.CodeText);
-        code.ParagraphFormat.SpaceBefore   = "2pt";
-        code.ParagraphFormat.SpaceAfter    = "2pt";
-        code.ParagraphFormat.LeftIndent    = "4pt";
-        code.ParagraphFormat.RightIndent   = "4pt";
+        code.ParagraphFormat.SpaceBefore   = "1pt"; code.ParagraphFormat.SpaceAfter = "1pt";
+        code.ParagraphFormat.LeftIndent    = "4pt"; code.ParagraphFormat.RightIndent = "4pt";
         code.ParagraphFormat.Shading.Color = ParseColor(theme.CodeBg);
 
-        // ── Metadata bar (file info line) ────────────────────────────────────
-        var meta = doc.AddStyle("Meta", "Normal");
-        meta.Font.Name  = "Arial";
-        meta.Font.Size  = 7.5;
-        meta.Font.Color = ParseColor(theme.LineNum);
-        meta.Font.Italic = true;
-        meta.ParagraphFormat.SpaceAfter = "4pt";
+        var tree = doc.AddStyle("Tree", "Normal");
+        tree.Font.Name  = "Courier New"; tree.Font.Size = 8;
+        tree.Font.Color = ParseColor(theme.CodeText);
+        tree.ParagraphFormat.SpaceAfter    = "1pt";
+        tree.ParagraphFormat.LeftIndent    = "4pt";
+        tree.ParagraphFormat.Shading.Color = ParseColor(theme.CodeBg);
 
-        // ── Caption (truncation notice) ──────────────────────────────────────
         var caption = doc.AddStyle("Caption", "Normal");
-        caption.Font.Size   = 7.5;
-        caption.Font.Italic = true;
-        caption.Font.Color  = ParseColor(theme.LineNum);
+        caption.Font.Size = 7.5; caption.Font.Italic = true;
+        caption.Font.Color = ParseColor(theme.LineNum);
 
         return doc;
     }
 
-    // ── Cover Page ────────────────────────────────────────────────────────────
+    // ── 1. Cover page ─────────────────────────────────────────────────────────
 
-    private static void AddCoverPage(Section section, ProjectScan scan, PdfTheme theme, string? subtitle = null)
+    private static void AddCoverPage(Section sec, ProjectScan scan, PdfTheme theme, string? subtitle = null)
     {
-        // Push content down visually
-        var spacer = section.AddParagraph();
-        spacer.Format.SpaceBefore = "3cm";
+        var sp = sec.AddParagraph(); sp.Format.SpaceBefore = "3cm";
 
-        // ── Project name ──────────────────────────────────────────────────────
-        var title = section.AddParagraph(scan.ProjectName);
-        title.Format.Font.Name  = "Arial";
-        title.Format.Font.Size  = 32;
-        title.Format.Font.Bold  = true;
-        title.Format.Font.Color = ParseColor(theme.Accent);
+        var title = sec.AddParagraph(scan.ProjectName);
+        title.Format.Font.Name = "Arial"; title.Format.Font.Size = 32;
+        title.Format.Font.Bold = true; title.Format.Font.Color = ParseColor(theme.Accent);
         title.Format.SpaceAfter = "0.3cm";
 
         if (subtitle is not null)
         {
-            var sub = section.AddParagraph(subtitle);
-            sub.Format.Font.Name  = "Arial";
-            sub.Format.Font.Size  = 16;
-            sub.Format.Font.Color = ParseColor(theme.LineNum);
-            sub.Format.SpaceAfter = "0.2cm";
+            var sub = sec.AddParagraph(subtitle);
+            sub.Format.Font.Name  = "Arial"; sub.Format.Font.Size  = 16;
+            sub.Format.Font.Color = ParseColor(theme.LineNum); sub.Format.SpaceAfter = "0.2cm";
         }
 
-        // ── Horizontal rule ───────────────────────────────────────────────────
-        var rule = section.AddParagraph();
-        rule.Format.Borders.Bottom.Width = 2;
+        // Thick rule
+        var rule = sec.AddParagraph();
+        rule.Format.Borders.Bottom.Width = 2.5;
         rule.Format.Borders.Bottom.Color = ParseColor(theme.Accent);
-        rule.Format.SpaceAfter = "0.5cm";
+        rule.Format.SpaceAfter = "0.6cm";
 
-        // ── Metadata block ────────────────────────────────────────────────────
-        var generated = section.AddParagraph($"Generated by QRD on {scan.ScannedAt:yyyy-MM-dd HH:mm} UTC");
-        generated.Format.Font.Name  = "Arial";
-        generated.Format.Font.Size  = 10;
-        generated.Format.Font.Color = ParseColor(theme.LineNum);
+        // Generated line
+        var gen = sec.AddParagraph($"Generated by QRD  ·  {scan.ScannedAt:yyyy-MM-dd HH:mm} UTC");
+        gen.Format.Font.Name  = "Arial"; gen.Format.Font.Size  = 10;
+        gen.Format.Font.Color = ParseColor(theme.LineNum); gen.Format.SpaceAfter = "0.2cm";
 
-        // ── Stats summary pills ───────────────────────────────────────────────
-        var statsLine = section.AddParagraph(
+        // Stats summary
+        var stats = sec.AddParagraph(
             $"{scan.Stats.TotalFiles:N0} files  ·  " +
-            $"{scan.Stats.TotalLines:N0} lines  ·  " +
-            $"{scan.Stats.TotalSize / 1024.0 / 1024.0:F1} MB  ·  " +
+            $"{scan.Stats.TotalLines:N0} lines of code  ·  " +
+            $"{scan.Stats.TotalSize / 1_048_576.0:F1} MB  ·  " +
             $"{scan.Stats.TotalDirectories:N0} directories");
-        statsLine.Format.Font.Name  = "Arial";
-        statsLine.Format.Font.Size  = 10;
-        statsLine.Format.Font.Color = ParseColor(theme.LineNum);
-        statsLine.Format.SpaceAfter = "1cm";
+        stats.Format.Font.Name  = "Arial"; stats.Format.Font.Size  = 11;
+        stats.Format.Font.Bold  = true;   stats.Format.Font.Color = ParseColor(theme.Text);
+        stats.Format.SpaceAfter = "1cm";
 
-        // ── Language breakdown on cover ───────────────────────────────────────
-        if (scan.Stats.LanguageDistribution.Count > 0)
+        // Language breakdown — 2-column table
+        var sorted = scan.Stats.LanguageDistribution
+            .OrderByDescending(kv => kv.Value).Take(10).ToList();
+
+        if (sorted.Count > 0)
         {
-            var langHeader = section.AddParagraph("Language Breakdown");
-            langHeader.Format.Font.Name  = "Arial";
-            langHeader.Format.Font.Size  = 11;
-            langHeader.Format.Font.Bold  = true;
-            langHeader.Format.Font.Color = ParseColor(theme.Text);
-            langHeader.Format.SpaceAfter = "0.3cm";
+            var lh = sec.AddParagraph("Languages");
+            lh.Format.Font.Name  = "Arial"; lh.Format.Font.Size = 11;
+            lh.Format.Font.Bold  = true;    lh.Format.Font.Color = ParseColor(theme.Text);
+            lh.Format.SpaceAfter = "0.3cm";
 
-            var table = section.AddTable();
-            table.Borders.Width = 0;
-            table.AddColumn("5cm");
-            table.AddColumn("3cm");
-            table.AddColumn("5cm");
-            table.AddColumn("3cm");
+            var tbl = sec.AddTable();
+            tbl.Borders.Width = 0;
+            tbl.AddColumn("5.5cm"); tbl.AddColumn("3cm");
+            tbl.AddColumn("5.5cm"); tbl.AddColumn("3cm");
 
-            var sorted = scan.Stats.LanguageDistribution
-                .OrderByDescending(kv => kv.Value)
-                .Take(8)
-                .ToList();
-
+            var total = scan.Stats.TotalFiles > 0 ? scan.Stats.TotalFiles : 1;
             for (var i = 0; i < sorted.Count; i += 2)
             {
-                var row = table.AddRow();
-                row.Cells[0].AddParagraph(sorted[i].Key)
-                   .Format.Font.Bold = true;
-                row.Cells[1].AddParagraph($"{sorted[i].Value} files");
-
+                var row = tbl.AddRow();
+                row.Cells[0].AddParagraph(sorted[i].Key).Format.Font.Bold = true;
+                row.Cells[1].AddParagraph($"{sorted[i].Value} files  ({sorted[i].Value * 100 / total}%)");
                 if (i + 1 < sorted.Count)
                 {
-                    row.Cells[2].AddParagraph(sorted[i + 1].Key)
-                       .Format.Font.Bold = true;
-                    row.Cells[3].AddParagraph($"{sorted[i + 1].Value} files");
+                    row.Cells[2].AddParagraph(sorted[i + 1].Key).Format.Font.Bold = true;
+                    row.Cells[3].AddParagraph($"{sorted[i + 1].Value} files  ({sorted[i + 1].Value * 100 / total}%)");
                 }
             }
         }
 
-        section.AddPageBreak();
+        sec.AddPageBreak();
     }
 
-    // ── Table of Contents ─────────────────────────────────────────────────────
+    // ── 2. README section ─────────────────────────────────────────────────────
 
-    private static void AddTableOfContents(Section section, ProjectScan scan, PdfTheme theme)
+    private static async Task AddReadmeSectionAsync(Section sec, FileInfo readmeFile, PdfTheme theme)
     {
-        var h = section.AddParagraph("Table of Contents");
-        h.Style = "Heading1";
-        h.Format.SpaceAfter = "0.4cm";
+        if (!File.Exists(readmeFile.Path)) return;
 
-        // Separator
-        var sep = section.AddParagraph();
+        var h = sec.AddParagraph("README");
+        h.Style = "Heading1"; h.Format.SpaceAfter = "0.3cm";
+
+        var sep = sec.AddParagraph();
         sep.Format.Borders.Bottom.Width = 0.75;
         sep.Format.Borders.Bottom.Color = ParseColor(theme.Border);
         sep.Format.SpaceAfter = "0.4cm";
 
-        // Group files by top-level folder
-        var groups = scan.FlatFiles
-            .GroupBy(f =>
-            {
-                var parts = f.RelativePath.Split('/');
-                return parts.Length > 1 ? parts[0] : "(root)";
-            })
-            .OrderBy(g => g.Key);
-
-        var fileNum = 0;
-        foreach (var group in groups)
+        try
         {
-            // Folder heading
-            var folderRow = section.AddParagraph($"📁  {group.Key}");
-            folderRow.Format.Font.Name  = "Arial";
-            folderRow.Format.Font.Size  = 9;
-            folderRow.Format.Font.Bold  = true;
-            folderRow.Format.Font.Color = ParseColor(theme.Accent);
-            folderRow.Format.SpaceBefore = "6pt";
-            folderRow.Format.SpaceAfter  = "2pt";
-            folderRow.Format.LeftIndent  = "0cm";
+            var text  = await File.ReadAllTextAsync(readmeFile.Path);
+            var lines = text.Split('\n');
 
-            foreach (var file in group.OrderBy(f => f.RelativePath))
+            foreach (var rawLine in lines)
             {
-                fileNum++;
-                var ext  = file.Extension.TrimStart('.');
-                var lang = file.Language?.ToString() ?? ext;
-                var size = file.SizeKb >= 1 ? $"{file.SizeKb:F1} KB" : $"{file.SizeBytes} B";
-                var lines = file.LineCount.HasValue ? $"  ·  {file.LineCount:N0} lines" : "";
+                var line = rawLine.TrimEnd('\r');
 
-                var entry = section.AddParagraph();
-                entry.Format.Font.Name  = "Arial";
-                entry.Format.Font.Size  = 8;
-                entry.Format.LeftIndent = "0.8cm";
-                entry.Format.SpaceAfter = "1pt";
-
-                var nameRun = entry.AddFormattedText(file.RelativePath.Split('/').Last(), TextFormat.Bold);
-                nameRun.Color = ParseColor(theme.Text);
-
-                var infoRun = entry.AddFormattedText($"   {lang}  ·  {size}{lines}", TextFormat.NotBold);
-                infoRun.Color = ParseColor(theme.LineNum);
-                infoRun.Size  = 7.5;
+                if (line.StartsWith("# "))
+                {
+                    var p = sec.AddParagraph(line[2..]);
+                    p.Format.Font.Name = "Arial"; p.Format.Font.Size = 16;
+                    p.Format.Font.Bold = true;    p.Format.Font.Color = ParseColor(theme.Accent);
+                    p.Format.SpaceBefore = "6pt"; p.Format.SpaceAfter = "3pt";
+                }
+                else if (line.StartsWith("## "))
+                {
+                    var p = sec.AddParagraph(line[3..]);
+                    p.Format.Font.Name = "Arial"; p.Format.Font.Size = 13;
+                    p.Format.Font.Bold = true;    p.Format.Font.Color = ParseColor(theme.Heading);
+                    p.Format.SpaceBefore = "5pt"; p.Format.SpaceAfter = "2pt";
+                }
+                else if (line.StartsWith("### "))
+                {
+                    var p = sec.AddParagraph(line[4..]);
+                    p.Format.Font.Name = "Arial"; p.Format.Font.Size = 11;
+                    p.Format.Font.Bold = true;    p.Format.Font.Color = ParseColor(theme.Heading);
+                    p.Format.SpaceBefore = "4pt"; p.Format.SpaceAfter = "2pt";
+                }
+                else if (line.StartsWith("    ") || line.StartsWith("\t"))
+                {
+                    var p = sec.AddParagraph(line.TrimStart('\t').TrimStart(' ', ' ', ' ', ' '));
+                    p.Style = "Code"; p.Format.Shading.Color = ParseColor(theme.CodeBg);
+                    p.Format.Borders.Left.Width = 2; p.Format.Borders.Left.Color = ParseColor(theme.Accent);
+                }
+                else if (line.StartsWith("- ") || line.StartsWith("* ") || line.StartsWith("+ "))
+                {
+                    var p = sec.AddParagraph($"  •  {line[2..]}");
+                    p.Format.LeftIndent = "0.4cm";
+                }
+                else if (string.IsNullOrWhiteSpace(line))
+                {
+                    var p = sec.AddParagraph(); p.Format.SpaceAfter = "3pt";
+                }
+                else
+                {
+                    sec.AddParagraph(line);
+                }
             }
         }
+        catch
+        {
+            sec.AddParagraph("[ Could not read README ]").Style = "Caption";
+        }
 
-        section.AddPageBreak();
+        sec.AddPageBreak();
     }
 
-    // ── Statistics Section ────────────────────────────────────────────────────
+    // ── 3. Table of Contents ─────────────────────────────────────────────────
 
-    private static void AddStatsSection(Section section, ProjectStats stats, PdfTheme theme)
+    private static void AddTableOfContents(Section sec, ProjectScan scan, PdfTheme theme)
     {
-        var h = section.AddParagraph("Project Statistics");
-        h.Style = "Heading1";
+        var h = sec.AddParagraph("Table of Contents");
+        h.Style = "Heading1"; h.Format.SpaceAfter = "0.4cm";
 
-        var sep = section.AddParagraph();
+        var sep = sec.AddParagraph();
         sep.Format.Borders.Bottom.Width = 0.75;
         sep.Format.Borders.Bottom.Color = ParseColor(theme.Border);
         sep.Format.SpaceAfter = "0.5cm";
 
-        // ── Summary cards (2-column table) ────────────────────────────────────
-        var summaryTable = section.AddTable();
-        summaryTable.Borders.Width = 0.5;
-        summaryTable.Borders.Color = ParseColor(theme.Border);
-        summaryTable.Rows.LeftIndent = 0;
+        var ordered = OrderedFiles(scan.FlatFiles);
 
-        summaryTable.AddColumn("8cm");
-        summaryTable.AddColumn("8cm");
-
-        AddStatsRow(summaryTable, "Total Files",          $"{stats.TotalFiles:N0}",                           theme, true);
-        AddStatsRow(summaryTable, "Total Lines of Code",  $"{stats.TotalLines:N0}",                           theme, false);
-        AddStatsRow(summaryTable, "Total Size",           $"{stats.TotalSize / 1024.0 / 1024.0:F2} MB",       theme, true);
-        AddStatsRow(summaryTable, "Total Directories",    $"{stats.TotalDirectories:N0}",                     theme, false);
-        AddStatsRow(summaryTable, "Avg. File Size",       $"{stats.AverageFileSize / 1024.0:F1} KB",          theme, true);
-        AddStatsRow(summaryTable, "Avg. Lines per File",  $"{stats.AverageLineCount:F0}",                     theme, false);
-
-        section.AddParagraph().Format.SpaceAfter = "0.5cm";
-
-        // ── Language distribution ─────────────────────────────────────────────
-        if (stats.LanguageDistribution.Count > 0)
+        // Root-level files first
+        var rootFiles = ordered.Where(f => !f.RelativePath.Contains('/')).ToList();
+        if (rootFiles.Count > 0)
         {
-            var lh = section.AddParagraph("Language Distribution");
-            lh.Style = "Heading2";
-            lh.Format.SpaceAfter = "0.3cm";
+            var rh = sec.AddParagraph("/  (root)");
+            rh.Format.Font.Name = "Arial"; rh.Format.Font.Size = 9;
+            rh.Format.Font.Bold = true;    rh.Format.Font.Color = ParseColor(theme.Accent);
+            rh.Format.SpaceAfter = "2pt";
+            foreach (var f in rootFiles) AddTocEntry(sec, f, theme, indent: "0.6cm");
+        }
 
-            var langTable = section.AddTable();
-            langTable.Borders.Width = 0.5;
-            langTable.Borders.Color = ParseColor(theme.Border);
-            langTable.AddColumn("8cm");
-            langTable.AddColumn("4cm");
-            langTable.AddColumn("4cm");
+        // Sub-folders alphabetically
+        var folderGroups = ordered
+            .Where(f => f.RelativePath.Contains('/'))
+            .GroupBy(f => f.RelativePath.Split('/')[0])
+            .OrderBy(g => g.Key);
 
-            // Header
-            var hdr = langTable.AddRow();
-            hdr.Shading.Color = ParseColor(theme.AccentLight);
-            hdr.HeadingFormat = true;
-            StyleCell(hdr.Cells[0], "Language",   bold: true, color: ParseColor(theme.Accent));
-            StyleCell(hdr.Cells[1], "Files",       bold: true, color: ParseColor(theme.Accent));
-            StyleCell(hdr.Cells[2], "% of Total",  bold: true, color: ParseColor(theme.Accent));
+        foreach (var grp in folderGroups)
+        {
+            var fh = sec.AddParagraph($"  {grp.Key}/");
+            fh.Format.Font.Name  = "Arial"; fh.Format.Font.Size = 9;
+            fh.Format.Font.Bold  = true;    fh.Format.Font.Color = ParseColor(theme.Accent);
+            fh.Format.SpaceBefore = "5pt"; fh.Format.SpaceAfter = "2pt";
+            foreach (var f in grp) AddTocEntry(sec, f, theme, indent: "1.2cm");
+        }
 
-            var totalFiles = stats.TotalFiles > 0 ? stats.TotalFiles : 1;
-            var alternate = false;
-            foreach (var (lang, count) in stats.LanguageDistribution.OrderByDescending(kv => kv.Value).Take(20))
+        sec.AddPageBreak();
+    }
+
+    private static void AddTocEntry(Section sec, FileInfo file, PdfTheme theme, string indent)
+    {
+        var entry = sec.AddParagraph();
+        entry.Format.Font.Name  = "Arial"; entry.Format.Font.Size = 8;
+        entry.Format.LeftIndent = indent;  entry.Format.SpaceAfter = "1pt";
+
+        var name = entry.AddFormattedText(file.RelativePath.Split('/').Last(), TextFormat.Bold);
+        name.Color = ParseColor(theme.Text);
+
+        var lang  = file.Language?.ToString() ?? file.Extension.TrimStart('.');
+        var size  = file.SizeKb >= 1 ? $"{file.SizeKb:F1} KB" : $"{file.SizeBytes} B";
+        var lines = file.LineCount.HasValue ? $"  ·  {file.LineCount:N0} lines" : "";
+
+        var info = entry.AddFormattedText($"   {lang}  ·  {size}{lines}", TextFormat.NotBold);
+        info.Color = ParseColor(theme.LineNum); info.Size = 7.5;
+    }
+
+    // ── 4. File tree ─────────────────────────────────────────────────────────
+
+    private static void AddFileTreeSection(Section sec, ProjectScan scan, PdfTheme theme,
+        DirectoryNode? rootNode = null)
+    {
+        var h = sec.AddParagraph("File Tree");
+        h.Style = "Heading1"; h.Format.SpaceAfter = "0.3cm";
+
+        var sep = sec.AddParagraph();
+        sep.Format.Borders.Bottom.Width = 0.75;
+        sep.Format.Borders.Bottom.Color = ParseColor(theme.Border);
+        sep.Format.SpaceAfter = "0.4cm";
+
+        var node  = rootNode ?? scan.FileTree;
+        var lines = new List<string>();
+        BuildTreeLines(node, "", true, lines);
+
+        // Render as one big code-style paragraph per chunk of 60 lines
+        const int chunk = 60;
+        for (var start = 0; start < lines.Count; start += chunk)
+        {
+            var para = sec.AddParagraph();
+            para.Style = "Tree";
+            para.Format.Shading.Color = ParseColor(theme.CodeBg);
+            para.Format.Borders.Left.Width = 2;
+            para.Format.Borders.Left.Color = ParseColor(theme.Border);
+
+            var slice = lines.Skip(start).Take(chunk).ToList();
+            for (var i = 0; i < slice.Count; i++)
             {
-                var row = langTable.AddRow();
-                if (alternate) row.Shading.Color = ParseColor(theme.RowAlt);
-                row.Cells[0].AddParagraph(lang);
-                row.Cells[1].AddParagraph($"{count:N0}");
-                row.Cells[2].AddParagraph($"{count * 100.0 / totalFiles:F1}%");
-                alternate = !alternate;
+                if (i > 0) para.AddLineBreak();
+                para.AddText(slice[i]);
             }
         }
 
-        section.AddPageBreak();
+        sec.AddPageBreak();
     }
 
-    private static void AddStatsRow(Table table, string label, string value, PdfTheme theme, bool shaded)
+    private static void BuildTreeLines(DirectoryNode node, string prefix, bool isLast,
+        List<string> lines, int depth = 0)
     {
-        var row = table.AddRow();
+        // Root node — just emit the folder name
+        if (depth == 0)
+        {
+            lines.Add($"{node.Name}/");
+        }
+        else
+        {
+            var connector = isLast ? "└── " : "├── ";
+            lines.Add($"{prefix}{connector}{node.Name}/");
+        }
+
+        var childPrefix = depth == 0 ? "" : prefix + (isLast ? "    " : "│   ");
+
+        // Sort: sub-folders first, then files, both alphabetically
+        var subDirs = node.ChildrenDirs.OrderBy(d => d.Name).ToList();
+        var files   = node.Files.OrderBy(f => f.Name).ToList();
+
+        for (var i = 0; i < subDirs.Count; i++)
+            BuildTreeLines(subDirs[i], childPrefix, i == subDirs.Count - 1 && files.Count == 0, lines, depth + 1);
+
+        for (var i = 0; i < files.Count; i++)
+        {
+            var connector = (i == files.Count - 1) ? "└── " : "├── ";
+            var lang      = files[i].Language?.ToString() ?? files[i].Extension.TrimStart('.');
+            var size      = files[i].SizeKb >= 1 ? $"{files[i].SizeKb:F0} KB" : $"{files[i].SizeBytes} B";
+            lines.Add($"{childPrefix}{connector}{files[i].Name}  [{lang}  {size}]");
+        }
+    }
+
+    // ── 5. Stats ──────────────────────────────────────────────────────────────
+
+    private static void AddStatsSection(Section sec, ProjectStats stats, PdfTheme theme)
+    {
+        var h = sec.AddParagraph("Project Statistics");
+        h.Style = "Heading1";
+
+        var sep = sec.AddParagraph();
+        sep.Format.Borders.Bottom.Width = 0.75;
+        sep.Format.Borders.Bottom.Color = ParseColor(theme.Border);
+        sep.Format.SpaceAfter = "0.5cm";
+
+        var tbl = sec.AddTable();
+        tbl.Borders.Width = 0.5; tbl.Borders.Color = ParseColor(theme.Border);
+        tbl.AddColumn("8cm"); tbl.AddColumn("8cm");
+
+        AddStatsRow(tbl, "Total Files",         $"{stats.TotalFiles:N0}",                         theme, true);
+        AddStatsRow(tbl, "Total Lines of Code", $"{stats.TotalLines:N0}",                         theme, false);
+        AddStatsRow(tbl, "Total Size",          $"{stats.TotalSize / 1_048_576.0:F2} MB",         theme, true);
+        AddStatsRow(tbl, "Total Directories",   $"{stats.TotalDirectories:N0}",                   theme, false);
+        AddStatsRow(tbl, "Avg. File Size",      $"{stats.AverageFileSize / 1024.0:F1} KB",        theme, true);
+        AddStatsRow(tbl, "Avg. Lines/File",     $"{stats.AverageLineCount:F0}",                   theme, false);
+
+        sec.AddParagraph().Format.SpaceAfter = "0.5cm";
+
+        if (stats.LanguageDistribution.Count > 0)
+        {
+            var lh = sec.AddParagraph("Language Distribution");
+            lh.Style = "Heading2"; lh.Format.SpaceAfter = "0.3cm";
+
+            var lt = sec.AddTable();
+            lt.Borders.Width = 0.5; lt.Borders.Color = ParseColor(theme.Border);
+            lt.AddColumn("8cm"); lt.AddColumn("4cm"); lt.AddColumn("4cm");
+
+            var hdr = lt.AddRow();
+            hdr.Shading.Color  = ParseColor(theme.AccentLight);
+            hdr.HeadingFormat  = true;
+            StyleCell(hdr.Cells[0], "Language",  bold: true, color: ParseColor(theme.Accent));
+            StyleCell(hdr.Cells[1], "Files",     bold: true, color: ParseColor(theme.Accent));
+            StyleCell(hdr.Cells[2], "% of Total",bold: true, color: ParseColor(theme.Accent));
+
+            var total = stats.TotalFiles > 0 ? stats.TotalFiles : 1;
+            var alt   = false;
+            foreach (var (lang, count) in stats.LanguageDistribution.OrderByDescending(kv => kv.Value).Take(20))
+            {
+                var row = lt.AddRow();
+                if (alt) row.Shading.Color = ParseColor(theme.RowAlt);
+                row.Cells[0].AddParagraph(lang);
+                row.Cells[1].AddParagraph($"{count:N0}");
+                row.Cells[2].AddParagraph($"{count * 100.0 / total:F1}%");
+                alt = !alt;
+            }
+        }
+
+        sec.AddPageBreak();
+    }
+
+    private static void AddStatsRow(Table t, string label, string value, PdfTheme theme, bool shaded)
+    {
+        var row = t.AddRow();
         if (shaded) row.Shading.Color = ParseColor(theme.RowAlt);
         row.Cells[0].AddParagraph(label).Format.Font.Bold = true;
         row.Cells[1].AddParagraph(value);
@@ -418,249 +570,232 @@ public class PdfBuilder
         p.Format.Font.Color = color;
     }
 
-    // ── File Section ──────────────────────────────────────────────────────────
+    // ── 6. File section ───────────────────────────────────────────────────────
 
     private async Task AddFileSectionAsync(
-        Section section,
-        FileInfo file,
-        AIDocumentation? aiDoc,
-        ExportOptions options,
-        PdfTheme theme)
+        Section sec, FileInfo file, AIDocumentation? aiDoc,
+        ExportOptions options, PdfTheme theme)
     {
-        // ── File header bar ───────────────────────────────────────────────────
-        var heading = section.AddParagraph();
-        heading.Format.Font.Name        = "Arial";
-        heading.Format.Font.Size        = 11;
-        heading.Format.Font.Bold        = true;
-        heading.Format.Font.Color       = ParseColor(theme.Heading);
-        heading.Format.Shading.Color    = ParseColor(theme.AccentLight);
-        heading.Format.Borders.Width    = 0.5;
-        heading.Format.Borders.Color    = ParseColor(theme.Border);
-        heading.Format.LeftIndent       = "4pt";
-        heading.Format.RightIndent      = "4pt";
-        heading.Format.SpaceBefore      = "6pt";
-        heading.Format.SpaceAfter       = "0pt";
-        heading.AddText(file.RelativePath);
+        // Header bar
+        var hdr = sec.AddParagraph();
+        hdr.Format.Font.Name     = "Arial"; hdr.Format.Font.Size  = 11;
+        hdr.Format.Font.Bold     = true;    hdr.Format.Font.Color = ParseColor(theme.Heading);
+        hdr.Format.Shading.Color = ParseColor(theme.AccentLight);
+        hdr.Format.Borders.Width = 0.5;     hdr.Format.Borders.Color = ParseColor(theme.Border);
+        hdr.Format.LeftIndent    = "4pt";   hdr.Format.SpaceBefore = "8pt";
+        hdr.Format.SpaceAfter    = "0pt";
+        hdr.AddText(file.RelativePath);
 
-        // ── Metadata strip ────────────────────────────────────────────────────
-        var metaBar = section.AddParagraph();
-        metaBar.Format.Font.Name     = "Arial";
-        metaBar.Format.Font.Size     = 7.5;
-        metaBar.Format.Font.Color    = ParseColor(theme.LineNum);
-        metaBar.Format.Font.Italic   = true;
-        metaBar.Format.Shading.Color = ParseColor(theme.CodeBg);
-        metaBar.Format.Borders.Width = 0.5;
-        metaBar.Format.Borders.Color = ParseColor(theme.Border);
-        metaBar.Format.LeftIndent    = "4pt";
-        metaBar.Format.SpaceAfter    = "4pt";
-
+        // Metadata strip
+        var meta = sec.AddParagraph();
+        meta.Format.Font.Name     = "Arial"; meta.Format.Font.Size   = 7.5;
+        meta.Format.Font.Italic   = true;    meta.Format.Font.Color  = ParseColor(theme.LineNum);
+        meta.Format.Shading.Color = ParseColor(theme.CodeBg);
+        meta.Format.Borders.Width = 0.5;     meta.Format.Borders.Color = ParseColor(theme.Border);
+        meta.Format.LeftIndent    = "4pt";   meta.Format.SpaceAfter  = "5pt";
         var lang  = file.Language?.ToString() ?? "Unknown";
-        var lines = file.LineCount.HasValue ? $"{file.LineCount:N0} lines" : "—";
-        metaBar.AddText($"{lang}   ·   {file.SizeKb:F1} KB   ·   {lines}   ·   {file.LastModified:yyyy-MM-dd}");
+        var locs  = file.LineCount.HasValue ? $"{file.LineCount:N0} lines" : "—";
+        meta.AddText($"{lang}   ·   {file.SizeKb:F1} KB   ·   {locs}   ·   {file.LastModified:yyyy-MM-dd}");
 
-        // ── AI documentation ──────────────────────────────────────────────────
+        // AI docs
         if (aiDoc is not null)
         {
             if (!string.IsNullOrWhiteSpace(aiDoc.Summary))
             {
-                var sumLabel = section.AddParagraph("Summary");
-                sumLabel.Style = "Heading3";
-
-                var sumPara = section.AddParagraph(aiDoc.Summary);
-                sumPara.Format.LeftIndent  = "0.4cm";
-                sumPara.Format.SpaceAfter  = "3pt";
+                sec.AddParagraph("Summary").Style = "Heading3";
+                var p = sec.AddParagraph(aiDoc.Summary);
+                p.Format.LeftIndent = "0.4cm"; p.Format.SpaceAfter = "3pt";
             }
-
             if (!string.IsNullOrWhiteSpace(aiDoc.Purpose))
             {
-                var purposeLabel = section.AddParagraph("Purpose");
-                purposeLabel.Style = "Heading3";
-
-                var purposePara = section.AddParagraph(aiDoc.Purpose);
-                purposePara.Format.LeftIndent = "0.4cm";
-                purposePara.Format.SpaceAfter = "3pt";
+                sec.AddParagraph("Purpose").Style = "Heading3";
+                var p = sec.AddParagraph(aiDoc.Purpose);
+                p.Format.LeftIndent = "0.4cm"; p.Format.SpaceAfter = "3pt";
             }
-
             if (aiDoc.KeyFunctions.Count > 0)
             {
-                var fnLabel = section.AddParagraph("Key Functions / Classes");
-                fnLabel.Style = "Heading3";
-
+                sec.AddParagraph("Key Functions / Classes").Style = "Heading3";
                 foreach (var fn in aiDoc.KeyFunctions)
                 {
-                    var fnPara = section.AddParagraph($"▸  {fn}");
-                    fnPara.Format.Font.Size   = 8;
-                    fnPara.Format.LeftIndent  = "0.6cm";
-                    fnPara.Format.SpaceAfter  = "1pt";
+                    var p = sec.AddParagraph($"  ▸  {fn}");
+                    p.Format.Font.Size = 8; p.Format.LeftIndent = "0.6cm"; p.Format.SpaceAfter = "1pt";
                 }
             }
-
             if (aiDoc.Dependencies.Count > 0)
             {
-                var depLabel = section.AddParagraph("Dependencies");
-                depLabel.Style = "Heading3";
-
-                var depPara = section.AddParagraph(string.Join("  ·  ", aiDoc.Dependencies));
-                depPara.Format.Font.Size  = 8;
-                depPara.Format.LeftIndent = "0.4cm";
-                depPara.Format.SpaceAfter = "3pt";
+                sec.AddParagraph("Dependencies").Style = "Heading3";
+                var p = sec.AddParagraph(string.Join("  ·  ", aiDoc.Dependencies));
+                p.Format.Font.Size = 8; p.Format.LeftIndent = "0.4cm"; p.Format.SpaceAfter = "3pt";
             }
-
             if (!string.IsNullOrWhiteSpace(aiDoc.Complexity))
             {
-                var cxPara = section.AddParagraph($"Complexity:  {aiDoc.Complexity}");
-                cxPara.Format.Font.Size  = 8;
-                cxPara.Format.Font.Bold  = true;
-                cxPara.Format.SpaceAfter = "4pt";
+                var p = sec.AddParagraph($"Complexity:  {aiDoc.Complexity}");
+                p.Format.Font.Size = 8; p.Format.Font.Bold = true; p.Format.SpaceAfter = "4pt";
             }
-
-            // Light separator before code
-            var aiSep = section.AddParagraph();
+            var aiSep = sec.AddParagraph();
             aiSep.Format.Borders.Bottom.Width = 0.5;
             aiSep.Format.Borders.Bottom.Color = ParseColor(theme.Border);
             aiSep.Format.SpaceAfter = "3pt";
         }
 
-        // ── Source code ───────────────────────────────────────────────────────
+        // Content
         if (!file.IsBinary && file.Category == FileCategory.Source)
-        {
-            await AddCodeBlockAsync(section, file, options, theme);
-        }
+            await AddCodeBlockAsync(sec, file, options, theme);
         else if (file.Category == FileCategory.Data && file.Extension == ".csv")
-        {
-            AddCsvPreview(section, file, options, theme);
-        }
+            AddCsvPreview(sec, file, options, theme);
         else if (file.IsBinary)
         {
-            var binaryNote = section.AddParagraph("[ Binary file — content not shown ]");
-            binaryNote.Style = "Caption";
-            binaryNote.Format.LeftIndent = "0.4cm";
+            var p = sec.AddParagraph("[ Binary file — content not shown ]");
+            p.Style = "Caption"; p.Format.LeftIndent = "0.4cm";
         }
 
-        // ── Trailing separator ────────────────────────────────────────────────
-        section.AddPageBreak();
+        sec.AddPageBreak();
     }
 
-    // ── Code Block ────────────────────────────────────────────────────────────
+    // ── Syntax-highlighted code block ─────────────────────────────────────────
 
     private static async Task AddCodeBlockAsync(
-        Section section,
-        FileInfo file,
-        ExportOptions options,
-        PdfTheme theme)
+        Section sec, FileInfo file, ExportOptions options, PdfTheme theme)
     {
         if (!File.Exists(file.Path)) return;
 
         try
         {
-            var content  = await File.ReadAllTextAsync(file.Path);
-            var lines    = content.Split('\n');
-            var maxLines = options.MaxSourceLines;
+            var content      = await File.ReadAllTextAsync(file.Path);
+            var allLines     = content.Split('\n');
+            var maxLines     = options.MaxSourceLines;
+            var displayLines = allLines.Take(maxLines).ToArray();
+            var highlighter  = GetHighlighter(file.Language, file.Extension);
+            const int chunk  = 60;
 
-            // Split code into chunks of 80 lines to avoid MigraDoc single-paragraph
-            // rendering issues that cause background shading to disappear
-            const int chunkSize = 80;
-            var displayLines = lines.Take(maxLines).ToArray();
-
-            for (var chunkStart = 0; chunkStart < displayLines.Length; chunkStart += chunkSize)
+            for (var start = 0; start < displayLines.Length; start += chunk)
             {
-                var chunk = displayLines.Skip(chunkStart).Take(chunkSize).ToArray();
-                var para  = section.AddParagraph();
+                var slice = displayLines.Skip(start).Take(chunk).ToArray();
+                var para  = sec.AddParagraph();
                 para.Style = "Code";
-                para.Format.Shading.Color = ParseColor(theme.CodeBg);
+                para.Format.Shading.Color          = ParseColor(theme.CodeBg);
+                para.Format.Borders.Left.Width     = 3;
+                para.Format.Borders.Left.Color     = ParseColor(theme.Accent);
 
-                // Left border accent on code blocks
-                para.Format.Borders.Left.Width = 3;
-                para.Format.Borders.Left.Color = ParseColor(theme.Accent);
-
-                for (var i = 0; i < chunk.Length; i++)
+                for (var i = 0; i < slice.Length; i++)
                 {
-                    var lineNum  = chunkStart + i + 1;
-                    var lineText = chunk[i].Replace("\r", "").Replace("\t", "    ");
-
-                    // Truncate very long lines
-                    if (lineText.Length > 120) lineText = lineText[..117] + "…";
-
                     if (i > 0) para.AddLineBreak();
 
                     if (options.LineNumbers)
                     {
-                        var numFmt = para.AddFormattedText($"{lineNum,4}  ", TextFormat.NotBold);
-                        numFmt.Color = ParseColor(theme.LineNum);
-                        numFmt.Size  = Math.Max(6, options.FontSize - 1.5);
+                        var num = para.AddFormattedText($"{start + i + 1,4}  ", TextFormat.NotBold);
+                        num.Color = ParseColor(theme.LineNum);
+                        num.Size  = Math.Max(6, options.FontSize - 1.5);
                     }
 
-                    para.AddText(lineText);
+                    var lineText = slice[i].Replace("\r", "").Replace("\t", "    ");
+                    if (lineText.Length > 130) lineText = lineText[..127] + "…";
+
+                    if (options.SyntaxHighlighting && highlighter is not null)
+                        EmitHighlightedLine(para, lineText, highlighter, theme);
+                    else
+                        para.AddText(lineText);
                 }
             }
 
-            if (lines.Length > maxLines)
+            if (allLines.Length > maxLines)
             {
-                var truncNote = section.AddParagraph(
-                    $"[ … {lines.Length - maxLines:N0} more lines not shown. Increase MaxSourceLines in export options to include them. ]");
-                truncNote.Style = "Caption";
-                truncNote.Format.LeftIndent = "0.4cm";
+                var note = sec.AddParagraph(
+                    $"[ … {allLines.Length - maxLines:N0} more lines not shown ]");
+                note.Style = "Caption"; note.Format.LeftIndent = "0.4cm";
             }
         }
         catch
         {
-            var err = section.AddParagraph("[ Could not read file content ]");
-            err.Style = "Caption";
+            sec.AddParagraph("[ Could not read file content ]").Style = "Caption";
         }
     }
 
-    // ── CSV Preview ───────────────────────────────────────────────────────────
+    // ── Syntax highlighting engine ────────────────────────────────────────────
 
-    private static void AddCsvPreview(Section section, FileInfo file, ExportOptions options, PdfTheme theme)
+    private static void EmitHighlightedLine(
+        Paragraph para, string line, SyntaxHighlighter hl, PdfTheme theme)
     {
-        var h = section.AddParagraph("Data Preview (CSV)");
-        h.Style = "Heading3";
-        h.Format.SpaceAfter = "0.2cm";
+        if (string.IsNullOrEmpty(line)) { para.AddText(""); return; }
 
+        var tokens = hl.Tokenize(line);
+        foreach (var (text, kind) in tokens)
+        {
+            if (string.IsNullOrEmpty(text)) continue;
+            var run   = para.AddFormattedText(text, TextFormat.NotBold);
+            run.Color = kind switch
+            {
+                TokenKind.Keyword     => ParseColor(theme.Kw),
+                TokenKind.String      => ParseColor(theme.Str),
+                TokenKind.Number      => ParseColor(theme.Num),
+                TokenKind.Comment     => ParseColor(theme.Cmt),
+                TokenKind.Type        => ParseColor(theme.Type),
+                TokenKind.Function    => ParseColor(theme.Fn),
+                TokenKind.Operator    => ParseColor(theme.Op),
+                TokenKind.Preprocessor=> ParseColor(theme.Prep),
+                _                     => ParseColor(theme.CodeText)
+            };
+            if (kind == TokenKind.Comment) run.Italic = true;
+        }
+    }
+
+    private static SyntaxHighlighter? GetHighlighter(Language? lang, string ext) => lang switch
+    {
+        Language.CSharp     => new CSharpHighlighter(),
+        Language.Python     => new PythonHighlighter(),
+        Language.JavaScript => new JsHighlighter(),
+        Language.TypeScript => new JsHighlighter(),
+        Language.ReactTsx   => new JsHighlighter(),
+        Language.Sql        => new SqlHighlighter(),
+        Language.Yaml       => new YamlHighlighter(),
+        Language.Json       => new JsonHighlighter(),
+        Language.Xml        => new XmlHighlighter(),
+        Language.Html       => new XmlHighlighter(),
+        Language.Shell      => new ShellHighlighter(),
+        Language.Bash       => new ShellHighlighter(),
+        Language.Css        => new CssHighlighter(),
+        Language.Java       => new CSharpHighlighter(), // similar enough
+        Language.Go         => new CSharpHighlighter(),
+        Language.Rust       => new CSharpHighlighter(),
+        Language.Cpp        => new CSharpHighlighter(),
+        _                   => null
+    };
+
+    // ── CSV preview ───────────────────────────────────────────────────────────
+
+    private static void AddCsvPreview(Section sec, FileInfo file, ExportOptions options, PdfTheme theme)
+    {
+        sec.AddParagraph("Data Preview (CSV)").Style = "Heading3";
         try
         {
             var lines = File.ReadLines(file.Path).Take(options.MaxCsvRows + 1).ToList();
             if (lines.Count == 0) return;
-
-            var headers = lines[0].Split(',');
-            var table   = section.AddTable();
-            table.Borders.Width = 0.5;
-            table.Borders.Color = ParseColor(theme.Border);
-
+            var headers  = lines[0].Split(',');
             var colWidth = $"{Math.Max(2, 16.0 / headers.Length):F1}cm";
-            foreach (var _ in headers) table.AddColumn(colWidth);
-
-            // Header row
-            var headerRow = table.AddRow();
-            headerRow.Shading.Color = ParseColor(theme.AccentLight);
-            headerRow.HeadingFormat = true;
+            var tbl      = sec.AddTable();
+            tbl.Borders.Width = 0.5; tbl.Borders.Color = ParseColor(theme.Border);
+            foreach (var _ in headers) tbl.AddColumn(colWidth);
+            var hdr = tbl.AddRow();
+            hdr.Shading.Color = ParseColor(theme.AccentLight); hdr.HeadingFormat = true;
             for (var i = 0; i < headers.Length; i++)
             {
-                var p = headerRow.Cells[i].AddParagraph(headers[i].Trim('"'));
-                p.Format.Font.Bold  = true;
-                p.Format.Font.Color = ParseColor(theme.Accent);
-                p.Format.Font.Size  = 8;
+                var p = hdr.Cells[i].AddParagraph(headers[i].Trim('"'));
+                p.Format.Font.Bold = true; p.Format.Font.Color = ParseColor(theme.Accent);
+                p.Format.Font.Size = 8;
             }
-
-            // Data rows with alternating shading
             var alt = false;
             foreach (var line in lines.Skip(1))
             {
                 var cells = line.Split(',');
-                var row   = table.AddRow();
+                var row   = tbl.AddRow();
                 if (alt) row.Shading.Color = ParseColor(theme.RowAlt);
                 for (var i = 0; i < Math.Min(cells.Length, headers.Length); i++)
-                {
-                    var p = row.Cells[i].AddParagraph(cells[i].Trim('"'));
-                    p.Format.Font.Size = 8;
-                }
+                    tbl.Rows[tbl.Rows.Count - 1].Cells[i].AddParagraph(cells[i].Trim('"'))
+                       .Format.Font.Size = 8;
                 alt = !alt;
             }
         }
-        catch
-        {
-            section.AddParagraph("[ Could not parse CSV ]").Style = "Caption";
-        }
+        catch { sec.AddParagraph("[ Could not parse CSV ]").Style = "Caption"; }
     }
 
     // ── Rendering ─────────────────────────────────────────────────────────────
@@ -676,19 +811,28 @@ public class PdfBuilder
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static List<FileInfo> FilterFiles(List<FileInfo> files, ExportOptions options)
+    /// Root files first (alphabetical), then sub-folders alphabetically (recursively)
+    private static List<FileInfo> OrderedFiles(IEnumerable<FileInfo> files)
     {
-        if (options.SelectedFiles.Count > 0)
-            return files.Where(f => options.SelectedFiles.Contains(f.RelativePath)).ToList();
-        return files;
+        var all    = files.ToList();
+        var root   = all.Where(f => !f.RelativePath.Contains('/')).OrderBy(f => f.Name).ToList();
+        var others = all.Where(f =>  f.RelativePath.Contains('/'))
+                        .OrderBy(f => f.RelativePath)
+                        .ToList();
+        root.AddRange(others);
+        return root;
     }
+
+    private static List<FileInfo> FilterFiles(List<FileInfo> files, ExportOptions options)
+        => options.SelectedFiles.Count > 0
+            ? files.Where(f => options.SelectedFiles.Contains(f.RelativePath)).ToList()
+            : files;
 
     private static List<FileInfo> GetAllFiles(DirectoryNode node)
     {
-        var result = new List<FileInfo>(node.Files);
-        foreach (var child in node.ChildrenDirs)
-            result.AddRange(GetAllFiles(child));
-        return result;
+        var r = new List<FileInfo>(node.Files);
+        foreach (var c in node.ChildrenDirs) r.AddRange(GetAllFiles(c));
+        return r;
     }
 
     private static MigraDoc.DocumentObjectModel.Color ParseColor(string hex)
@@ -711,18 +855,191 @@ public class PdfBuilder
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
 public record PdfTheme(
-    string Bg,
-    string Text,
-    string CodeBg,
-    string CodeText,
-    string Accent,
-    string Heading,
-    string Border,
-    string LineNum,
-    string HeaderBg,
-    string HeaderText,
-    string AccentLight,   // light tinted bg for header rows / cover blocks
-    string RowAlt);       // alternating row background
+    string Bg, string Text, string CodeBg, string CodeText,
+    string Accent, string Heading, string Border, string LineNum,
+    string HeaderBg, string HeaderText, string AccentLight, string RowAlt,
+    // Syntax highlight colours
+    string Kw, string Str, string Num, string Cmt,
+    string Type, string Fn, string Op, string Prep);
+
+// ── Syntax highlighting ───────────────────────────────────────────────────────
+
+public enum TokenKind { Normal, Keyword, String, Number, Comment, Type, Function, Operator, Preprocessor }
+
+public abstract class SyntaxHighlighter
+{
+    public abstract List<(string Text, TokenKind Kind)> Tokenize(string line);
+
+    protected static List<(string, TokenKind)> Single(string text, TokenKind kind)
+        => [(text, kind)];
+
+    /// Simple greedy tokenizer helper: split line into tokens by regex patterns.
+    protected static List<(string, TokenKind)> Lex(string line,
+        (System.Text.RegularExpressions.Regex Pattern, TokenKind Kind)[] rules)
+    {
+        var result  = new List<(string, TokenKind)>();
+        var pos     = 0;
+        while (pos < line.Length)
+        {
+            (string, TokenKind)? best = null;
+            var bestIdx = int.MaxValue;
+            System.Text.RegularExpressions.Match? bestMatch = null;
+
+            foreach (var (pat, kind) in rules)
+            {
+                var m = pat.Match(line, pos);
+                if (m.Success && m.Index < bestIdx)
+                {
+                    bestIdx   = m.Index;
+                    best      = (m.Value, kind);
+                    bestMatch = m;
+                }
+            }
+
+            if (best is null || bestIdx == int.MaxValue)
+            {
+                result.Add((line[pos..], TokenKind.Normal));
+                break;
+            }
+
+            if (bestIdx > pos)
+                result.Add((line[pos..bestIdx], TokenKind.Normal));
+
+            result.Add(best.Value);
+            pos = bestIdx + bestMatch!.Length;
+        }
+        return result;
+    }
+}
+
+public class CSharpHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"//.*$"),                                                          TokenKind.Comment),
+        (new(@"""(?:[^""\\]|\\.)*""|@""[^""]*"""),                               TokenKind.String),
+        (new(@"'(?:[^'\\]|\\.)*'"),                                              TokenKind.String),
+        (new(@"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|async|await|var|dynamic|record|init|required|file|scoped|nint|nuint)\b"),  TokenKind.Keyword),
+        (new(@"\b[A-Z][A-Za-z0-9_]*(?=\s*[({<])"),                              TokenKind.Function),
+        (new(@"\b[A-Z][A-Za-z0-9_]*\b"),                                         TokenKind.Type),
+        (new(@"\b\d+(\.\d+)?([eE][+-]?\d+)?[fFdDmMlLuU]?\b"),                  TokenKind.Number),
+        (new(@"[+\-*/%&|^~<>=!?:]+"),                                           TokenKind.Operator),
+        (new(@"#\w+"),                                                           TokenKind.Preprocessor),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class PythonHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"#.*$"),                                                           TokenKind.Comment),
+        (new(@"(\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?''')"),                          TokenKind.String),
+        (new(@"""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*'"),                         TokenKind.String),
+        (new(@"\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b"), TokenKind.Keyword),
+        (new(@"\bdef\s+([A-Za-z_]\w*)"),                                         TokenKind.Function),
+        (new(@"\b[A-Z][A-Za-z0-9_]*\b"),                                         TokenKind.Type),
+        (new(@"\b\d+(\.\d+)?([eEjJ])?\b"),                                      TokenKind.Number),
+        (new(@"@[A-Za-z_]\w*"),                                                  TokenKind.Preprocessor),
+        (new(@"[+\-*/%&|^~<>=!]+"),                                             TokenKind.Operator),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class JsHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"//.*$"),                                                          TokenKind.Comment),
+        (new(@"`(?:[^`\\]|\\.)*`"),                                              TokenKind.String),
+        (new(@"""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*'"),                         TokenKind.String),
+        (new(@"\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|from|function|if|import|in|instanceof|let|new|null|of|return|static|super|switch|this|throw|true|false|try|typeof|undefined|var|void|while|with|yield|type|interface|enum|implements|declare|abstract|readonly|override)\b"), TokenKind.Keyword),
+        (new(@"\b[A-Z][A-Za-z0-9_]*\b"),                                         TokenKind.Type),
+        (new(@"\b\d+(\.\d+)?(n)?\b"),                                           TokenKind.Number),
+        (new(@"[+\-*/%&|^~<>=!?:]+"),                                           TokenKind.Operator),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class SqlHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"--.*$"),                                                          TokenKind.Comment),
+        (new(@"'(?:[^'\\]|\\.)*'"),                                              TokenKind.String),
+        (new(@"\b(ADD|ALL|ALTER|AND|AS|ASC|BETWEEN|BY|CASE|COLUMN|CONSTRAINT|CREATE|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|ELSE|END|EXISTS|FOREIGN|FROM|FULL|GROUP|HAVING|IN|INDEX|INNER|INSERT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|REFERENCES|RIGHT|SELECT|SET|TABLE|THEN|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase), TokenKind.Keyword),
+        (new(@"\b\d+(\.\d+)?\b"),                                               TokenKind.Number),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class YamlHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"#.*$"),                                                           TokenKind.Comment),
+        (new(@"""(?:[^""\\]|\\.)*""|'[^']*'"),                                   TokenKind.String),
+        (new(@"^(\s*[\w\-]+)\s*:"),                                              TokenKind.Keyword),
+        (new(@"\b(true|false|null|yes|no)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase), TokenKind.Type),
+        (new(@"\b\d+(\.\d+)?\b"),                                               TokenKind.Number),
+        (new(@"^---$|^\.\.\.$"),                                                 TokenKind.Preprocessor),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class JsonHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"""(?:[^""\\]|\\.)*""\s*:"),                                       TokenKind.Keyword),
+        (new(@"""(?:[^""\\]|\\.)*"""),                                           TokenKind.String),
+        (new(@"\b(true|false|null)\b"),                                          TokenKind.Type),
+        (new(@"-?\d+(\.\d+)?([eE][+-]?\d+)?\b"),                                TokenKind.Number),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class XmlHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"<!--.*?-->"),                                                     TokenKind.Comment),
+        (new(@"<[!/]?[\w:-]+"),                                                  TokenKind.Keyword),
+        (new(@"""[^""]*"""),                                                     TokenKind.String),
+        (new(@"[\w:-]+="),                                                       TokenKind.Type),
+        (new(@"/?>"),                                                            TokenKind.Keyword),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class ShellHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"#.*$"),                                                           TokenKind.Comment),
+        (new(@"""(?:[^""\\]|\\.)*""|'[^']*'"),                                   TokenKind.String),
+        (new(@"\b(if|then|else|elif|fi|for|in|do|done|while|until|case|esac|function|return|exit|export|source|echo|local|readonly|declare|set|unset|shift|exec|eval|trap|continue|break)\b"), TokenKind.Keyword),
+        (new(@"\$\{?[\w#@*?!-]+\}?"),                                           TokenKind.Type),
+        (new(@"\b\d+\b"),                                                        TokenKind.Number),
+        (new(@"^#!.*$"),                                                         TokenKind.Preprocessor),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
+
+public class CssHighlighter : SyntaxHighlighter
+{
+    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
+    [
+        (new(@"/\*.*?\*/"),                                                      TokenKind.Comment),
+        (new(@"""[^""]*""|'[^']*'"),                                             TokenKind.String),
+        (new(@"[\w-]+\s*:"),                                                     TokenKind.Keyword),
+        (new(@"#[0-9a-fA-F]{3,8}\b"),                                           TokenKind.Number),
+        (new(@"-?\d+(\.\d+)?(px|em|rem|%|vh|vw|pt|cm|mm|ex|ch|fr|deg|s|ms)?"), TokenKind.Number),
+        (new(@"@[\w-]+"),                                                        TokenKind.Preprocessor),
+        (new(@"[.#:[\]~>+*]"),                                                  TokenKind.Operator),
+    ];
+    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+}
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -734,20 +1051,20 @@ public enum PdfThemeName   { Default, Dark, Github, Monokai }
 
 public class ExportOptions
 {
-    public ExportMode    Mode              { get; init; } = ExportMode.Single;
-    public bool          IncludeAi         { get; init; } = true;
-    public bool          IncludeCharts     { get; init; } = true;
-    public bool          IncludeToc        { get; init; } = true;
-    public bool          IncludeStats      { get; init; } = true;
-    public bool          SyntaxHighlighting{ get; init; } = true;
-    public bool          LineNumbers       { get; init; } = true;
-    public int           MaxCsvRows        { get; init; } = 100;
-    public int           MaxSourceLines    { get; init; } = 2000;
-    public PaperSize     PaperSize         { get; init; } = PaperSize.A4;
-    public PdfOrientation Orientation      { get; init; } = PdfOrientation.Portrait;
-    public PdfThemeName  Theme             { get; init; } = PdfThemeName.Default;
-    public int           FontSize          { get; init; } = 9;
-    public List<string>  SelectedFiles     { get; init; } = [];
+    public ExportMode     Mode               { get; init; } = ExportMode.Single;
+    public bool           IncludeAi          { get; init; } = true;
+    public bool           IncludeCharts      { get; init; } = true;
+    public bool           IncludeToc         { get; init; } = true;
+    public bool           IncludeStats       { get; init; } = true;
+    public bool           SyntaxHighlighting { get; init; } = true;
+    public bool           LineNumbers        { get; init; } = true;
+    public int            MaxCsvRows         { get; init; } = 100;
+    public int            MaxSourceLines     { get; init; } = 2000;
+    public PaperSize      PaperSize          { get; init; } = PaperSize.A4;
+    public PdfOrientation Orientation        { get; init; } = PdfOrientation.Portrait;
+    public PdfThemeName   Theme              { get; init; } = PdfThemeName.Default;
+    public int            FontSize           { get; init; } = 9;
+    public List<string>   SelectedFiles      { get; init; } = [];
 
     public string ThemeKey => Theme switch
     {
