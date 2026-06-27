@@ -86,9 +86,9 @@ public class AIDocumenter
             Model         = _settings.AiModel,
             MaxTokens     = 1024,
             SystemMessage = SystemPrompt,
-            Messages      = new List<Message>
+            Messages      = new List<Anthropic.SDK.Messaging.Message>
             {
-                new Message { Role = RoleType.User, Content = userMessage }
+                new Anthropic.SDK.Messaging.Message { Role = RoleType.User, Content = userMessage }
             }
         };
 
