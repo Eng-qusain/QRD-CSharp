@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using MigraDoc.DocumentObjectModel;
 using MigraDoc.DocumentObjectModel.Tables;
 using MigraDoc.Rendering;
@@ -914,134 +915,174 @@ public abstract class SyntaxHighlighter
 
 public class CSharpHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"//.*$"),                                                          TokenKind.Comment),
-        (new(@"""(?:[^""\\]|\\.)*""|@""[^""]*"""),                               TokenKind.String),
-        (new(@"'(?:[^'\\]|\\.)*'"),                                              TokenKind.String),
-        (new(@"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|async|await|var|dynamic|record|init|required|file|scoped|nint|nuint)\b"),  TokenKind.Keyword),
-        (new(@"\b[A-Z][A-Za-z0-9_]*(?=\s*[({<])"),                              TokenKind.Function),
-        (new(@"\b[A-Z][A-Za-z0-9_]*\b"),                                         TokenKind.Type),
-        (new(@"\b\d+(\.\d+)?([eE][+-]?\d+)?[fFdDmMlLuU]?\b"),                  TokenKind.Number),
-        (new(@"[+\-*/%&|^~<>=!?:]+"),                                           TokenKind.Operator),
-        (new(@"#\w+"),                                                           TokenKind.Preprocessor),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    // Keywords — uses \b word boundary, verbatim string, no quote issues
+    private static readonly Regex KwPat = new Regex(
+        @"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|" +
+        @"decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|" +
+        @"fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|" +
+        @"namespace|new|null|object|operator|out|override|params|private|protected|public|" +
+        @"readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|" +
+        @"switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|" +
+        @"virtual|void|volatile|while|async|await|var|dynamic|record|init|required|" +
+        @"file|scoped|nint|nuint)\b");
+    private static readonly Regex CmtPat  = new Regex(@"//.*$");
+    private static readonly Regex StrPat  = new Regex(@"@""[^""]*""|""(?:[^""\\]|\\.)*""");
+    private static readonly Regex CharPat = new Regex(@"'(?:[^'\\]|\\.)*'");
+    private static readonly Regex NumPat  = new Regex(@"\b\d+(\.\d+)?([eE][+-]?\d+)?[fFdDmMlLuU]?\b");
+    private static readonly Regex TypPat  = new Regex(@"\b[A-Z][A-Za-z0-9_]*\b");
+    private static readonly Regex FnPat   = new Regex(@"\b[A-Z][A-Za-z0-9_]*(?=\s*[({<])");
+    private static readonly Regex OpPat   = new Regex(@"[+\-*/%&|^~<>=!?:]+");
+    private static readonly Regex PrePat  = new Regex(@"#\w+");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (CmtPat, TokenKind.Comment), (StrPat, TokenKind.String),
+            (CharPat, TokenKind.String), (KwPat, TokenKind.Keyword),
+            (FnPat, TokenKind.Function), (TypPat, TokenKind.Type),
+            (NumPat, TokenKind.Number),  (OpPat, TokenKind.Operator),
+            (PrePat, TokenKind.Preprocessor) });
 }
 
 public class PythonHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"#.*$"),                                                           TokenKind.Comment),
-        (new(@"(\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?''')"),                          TokenKind.String),
-        (new(@"""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*'"),                         TokenKind.String),
-        (new(@"\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b"), TokenKind.Keyword),
-        (new(@"\bdef\s+([A-Za-z_]\w*)"),                                         TokenKind.Function),
-        (new(@"\b[A-Z][A-Za-z0-9_]*\b"),                                         TokenKind.Type),
-        (new(@"\b\d+(\.\d+)?([eEjJ])?\b"),                                      TokenKind.Number),
-        (new(@"@[A-Za-z_]\w*"),                                                  TokenKind.Preprocessor),
-        (new(@"[+\-*/%&|^~<>=!]+"),                                             TokenKind.Operator),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    private static readonly Regex CmtPat = new Regex(@"#.*$");
+    private static readonly Regex StrPat = new Regex("\"[^\"\\n]*\"|'[^'\\n]*'");
+    private static readonly Regex KwPat  = new Regex(
+        @"\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|" +
+        @"else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|" +
+        @"raise|return|try|while|with|yield)\b");
+    private static readonly Regex FnPat  = new Regex(@"(?<=def\s)[A-Za-z_]\w*");
+    private static readonly Regex TypPat = new Regex(@"\b[A-Z][A-Za-z0-9_]*\b");
+    private static readonly Regex NumPat = new Regex(@"\b\d+(\.\d+)?([eEjJ])?\b");
+    private static readonly Regex DecPat = new Regex(@"@[A-Za-z_]\w*");
+    private static readonly Regex OpPat  = new Regex(@"[+\-*/%&|^~<>=!]+");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (CmtPat, TokenKind.Comment), (StrPat, TokenKind.String),
+            (KwPat, TokenKind.Keyword),  (FnPat, TokenKind.Function),
+            (TypPat, TokenKind.Type),    (NumPat, TokenKind.Number),
+            (DecPat, TokenKind.Preprocessor), (OpPat, TokenKind.Operator) });
 }
 
 public class JsHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"//.*$"),                                                          TokenKind.Comment),
-        (new(@"`(?:[^`\\]|\\.)*`"),                                              TokenKind.String),
-        (new(@"""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*'"),                         TokenKind.String),
-        (new(@"\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|from|function|if|import|in|instanceof|let|new|null|of|return|static|super|switch|this|throw|true|false|try|typeof|undefined|var|void|while|with|yield|type|interface|enum|implements|declare|abstract|readonly|override)\b"), TokenKind.Keyword),
-        (new(@"\b[A-Z][A-Za-z0-9_]*\b"),                                         TokenKind.Type),
-        (new(@"\b\d+(\.\d+)?(n)?\b"),                                           TokenKind.Number),
-        (new(@"[+\-*/%&|^~<>=!?:]+"),                                           TokenKind.Operator),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    private static readonly Regex CmtPat = new Regex(@"//.*$");
+    private static readonly Regex StrPat = new Regex(@"`[^`\n]*`|""[^""\n]*""|'[^'\n]*'");
+    private static readonly Regex KwPat  = new Regex(
+        @"\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|" +
+        @"else|export|extends|finally|for|from|function|if|import|in|instanceof|let|new|" +
+        @"null|of|return|static|super|switch|this|throw|true|false|try|typeof|undefined|" +
+        @"var|void|while|with|yield|type|interface|enum|implements|declare|abstract|" +
+        @"readonly|override)\b");
+    private static readonly Regex TypPat = new Regex(@"\b[A-Z][A-Za-z0-9_]*\b");
+    private static readonly Regex NumPat = new Regex(@"\b\d+(\.\d+)?(n)?\b");
+    private static readonly Regex OpPat  = new Regex(@"[+\-*/%&|^~<>=!?:]+");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (CmtPat, TokenKind.Comment), (StrPat, TokenKind.String),
+            (KwPat, TokenKind.Keyword),  (TypPat, TokenKind.Type),
+            (NumPat, TokenKind.Number),  (OpPat, TokenKind.Operator) });
 }
 
 public class SqlHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"--.*$"),                                                          TokenKind.Comment),
-        (new(@"'(?:[^'\\]|\\.)*'"),                                              TokenKind.String),
-        (new(@"\b(ADD|ALL|ALTER|AND|AS|ASC|BETWEEN|BY|CASE|COLUMN|CONSTRAINT|CREATE|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|ELSE|END|EXISTS|FOREIGN|FROM|FULL|GROUP|HAVING|IN|INDEX|INNER|INSERT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|REFERENCES|RIGHT|SELECT|SET|TABLE|THEN|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase), TokenKind.Keyword),
-        (new(@"\b\d+(\.\d+)?\b"),                                               TokenKind.Number),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    private static readonly Regex CmtPat = new Regex(@"--.*$");
+    private static readonly Regex StrPat = new Regex(@"'[^'\n]*'");
+    private static readonly Regex KwPat  = new Regex(
+        @"\b(ADD|ALL|ALTER|AND|AS|ASC|BETWEEN|BY|CASE|COLUMN|CONSTRAINT|CREATE|DATABASE|" +
+        @"DEFAULT|DELETE|DESC|DISTINCT|DROP|ELSE|END|EXISTS|FOREIGN|FROM|FULL|GROUP|HAVING|" +
+        @"IN|INDEX|INNER|INSERT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|" +
+        @"PRIMARY|REFERENCES|RIGHT|SELECT|SET|TABLE|THEN|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|" +
+        @"VALUES|VIEW|WHERE|WITH)\b", RegexOptions.IgnoreCase);
+    private static readonly Regex NumPat = new Regex(@"\b\d+(\.\d+)?\b");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (CmtPat, TokenKind.Comment), (StrPat, TokenKind.String),
+            (KwPat, TokenKind.Keyword),  (NumPat, TokenKind.Number) });
 }
 
 public class YamlHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"#.*$"),                                                           TokenKind.Comment),
-        (new(@"""(?:[^""\\]|\\.)*""|'[^']*'"),                                   TokenKind.String),
-        (new(@"^(\s*[\w\-]+)\s*:"),                                              TokenKind.Keyword),
-        (new(@"\b(true|false|null|yes|no)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase), TokenKind.Type),
-        (new(@"\b\d+(\.\d+)?\b"),                                               TokenKind.Number),
-        (new(@"^---$|^\.\.\.$"),                                                 TokenKind.Preprocessor),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    private static readonly Regex CmtPat = new Regex(@"#.*$");
+    private static readonly Regex StrPat = new Regex("\"[^\"\\n]*\"|'[^'\\n]*'");
+    private static readonly Regex KeyPat = new Regex(@"^\s*[\w\-]+\s*:");
+    private static readonly Regex BolPat = new Regex(@"\b(true|false|null|yes|no)\b", RegexOptions.IgnoreCase);
+    private static readonly Regex NumPat = new Regex(@"\b\d+(\.\d+)?\b");
+    private static readonly Regex DocPat = new Regex(@"^---$|^\.\.\.$");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (CmtPat, TokenKind.Comment), (StrPat, TokenKind.String),
+            (KeyPat, TokenKind.Keyword), (BolPat, TokenKind.Type),
+            (NumPat, TokenKind.Number),  (DocPat, TokenKind.Preprocessor) });
 }
 
 public class JsonHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"""(?:[^""\\]|\\.)*""\s*:"),                                       TokenKind.Keyword),
-        (new(@"""(?:[^""\\]|\\.)*"""),                                           TokenKind.String),
-        (new(@"\b(true|false|null)\b"),                                          TokenKind.Type),
-        (new(@"-?\d+(\.\d+)?([eE][+-]?\d+)?\b"),                                TokenKind.Number),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    private static readonly Regex KeyPat = new Regex("\"[^\"\\n]*\"\\s*:");
+    private static readonly Regex StrPat = new Regex("\"[^\"\\n]*\"");
+    private static readonly Regex BolPat = new Regex(@"\b(true|false|null)\b");
+    private static readonly Regex NumPat = new Regex(@"-?\d+(\.\d+)?([eE][+-]?\d+)?\b");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (KeyPat, TokenKind.Keyword), (StrPat, TokenKind.String),
+            (BolPat, TokenKind.Type),    (NumPat, TokenKind.Number) });
 }
 
 public class XmlHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"<!--.*?-->"),                                                     TokenKind.Comment),
-        (new(@"<[!/]?[\w:-]+"),                                                  TokenKind.Keyword),
-        (new(@"""[^""]*"""),                                                     TokenKind.String),
-        (new(@"[\w:-]+="),                                                       TokenKind.Type),
-        (new(@"/?>"),                                                            TokenKind.Keyword),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    private static readonly Regex CmtPat = new Regex(@"<!--.*?-->");
+    private static readonly Regex TagPat = new Regex(@"<[!/]?[\w:-]+");
+    private static readonly Regex StrPat = new Regex("\"[^\"\\n]*\"");
+    private static readonly Regex AttPat = new Regex(@"[\w:-]+=");
+    private static readonly Regex ClsPat = new Regex(@"/?>|</[\w:-]+>");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (CmtPat, TokenKind.Comment), (TagPat, TokenKind.Keyword),
+            (StrPat, TokenKind.String),  (AttPat, TokenKind.Type),
+            (ClsPat, TokenKind.Keyword) });
 }
 
 public class ShellHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"#.*$"),                                                           TokenKind.Comment),
-        (new(@"""(?:[^""\\]|\\.)*""|'[^']*'"),                                   TokenKind.String),
-        (new(@"\b(if|then|else|elif|fi|for|in|do|done|while|until|case|esac|function|return|exit|export|source|echo|local|readonly|declare|set|unset|shift|exec|eval|trap|continue|break)\b"), TokenKind.Keyword),
-        (new(@"\$\{?[\w#@*?!-]+\}?"),                                           TokenKind.Type),
-        (new(@"\b\d+\b"),                                                        TokenKind.Number),
-        (new(@"^#!.*$"),                                                         TokenKind.Preprocessor),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
+    private static readonly Regex ShnPat = new Regex(@"^#!.*$");
+    private static readonly Regex CmtPat = new Regex(@"(?<!#!)#.*$");
+    private static readonly Regex StrPat = new Regex("\"[^\"\\n]*\"|'[^'\\n]*'");
+    private static readonly Regex KwPat  = new Regex(
+        @"\b(if|then|else|elif|fi|for|in|do|done|while|until|case|esac|function|return|exit|" +
+        @"export|source|echo|local|readonly|declare|set|unset|shift|exec|eval|trap|continue|break)\b");
+    private static readonly Regex VarPat = new Regex(@"\$\{?[\w#@*?!-]+\}?");
+    private static readonly Regex NumPat = new Regex(@"\b\d+\b");
+
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (ShnPat, TokenKind.Preprocessor), (CmtPat, TokenKind.Comment),
+            (StrPat, TokenKind.String),        (KwPat, TokenKind.Keyword),
+            (VarPat, TokenKind.Type),          (NumPat, TokenKind.Number) });
 }
 
 public class CssHighlighter : SyntaxHighlighter
 {
-    private static readonly (System.Text.RegularExpressions.Regex, TokenKind)[] Rules =
-    [
-        (new(@"/\*.*?\*/"),                                                      TokenKind.Comment),
-        (new(@"""[^""]*""|'[^']*'"),                                             TokenKind.String),
-        (new(@"[\w-]+\s*:"),                                                     TokenKind.Keyword),
-        (new(@"#[0-9a-fA-F]{3,8}\b"),                                           TokenKind.Number),
-        (new(@"-?\d+(\.\d+)?(px|em|rem|%|vh|vw|pt|cm|mm|ex|ch|fr|deg|s|ms)?"), TokenKind.Number),
-        (new(@"@[\w-]+"),                                                        TokenKind.Preprocessor),
-        (new(@"[.#:[\]~>+*]"),                                                  TokenKind.Operator),
-    ];
-    public override List<(string, TokenKind)> Tokenize(string line) => Lex(line, Rules);
-}
+    private static readonly Regex CmtPat = new Regex(@"/\*.*?\*/");
+    private static readonly Regex StrPat = new Regex("\"[^\"\\n]*\"|'[^'\\n]*'");
+    private static readonly Regex PropPat= new Regex(@"[\w-]+\s*:");
+    private static readonly Regex HexPat = new Regex(@"#[0-9a-fA-F]{3,8}\b");
+    private static readonly Regex NumPat = new Regex(@"-?\d+(\.\d+)?(px|em|rem|%|vh|vw|pt|cm|mm|s|ms|fr|deg)?");
+    private static readonly Regex AtPat  = new Regex(@"@[\w-]+");
+    private static readonly Regex SelPat = new Regex(@"[.#:[\]~>+*]");
 
-// ── Enums ─────────────────────────────────────────────────────────────────────
+    public override List<(string, TokenKind)> Tokenize(string line)
+        => Lex(line, new[] {
+            (CmtPat, TokenKind.Comment), (StrPat, TokenKind.String),
+            (PropPat, TokenKind.Keyword),(HexPat, TokenKind.Number),
+            (NumPat, TokenKind.Number),  (AtPat, TokenKind.Preprocessor),
+            (SelPat, TokenKind.Operator) });
+}
 
 public enum PaperSize      { A4, Letter, A3 }
 public enum PdfOrientation { Portrait, Landscape }
