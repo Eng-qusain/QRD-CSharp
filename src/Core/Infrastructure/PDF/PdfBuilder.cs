@@ -653,7 +653,10 @@ public class PdfBuilder
         }
 
         // Content
-        if (!file.IsBinary && file.Category == FileCategory.Source)
+        var isTextRenderable = !file.IsBinary && file.Category is
+            FileCategory.Source or FileCategory.Config or FileCategory.Document or FileCategory.Unknown;
+
+        if (isTextRenderable)
             await AddCodeBlockAsync(sec, file, options, theme);
         else if (file.Category == FileCategory.Data && file.Extension == ".csv")
             AddCsvPreview(sec, file, options, theme);
