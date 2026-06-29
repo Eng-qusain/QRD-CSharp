@@ -175,7 +175,7 @@ public partial class PreviewPage : Page
         // Rule
         doc.Blocks.Add(new BlockUIContainer(new System.Windows.Shapes.Rectangle
         {
-            Height = 3, Fill = B(theme.Accent).Brush, HorizontalAlignment = HorizontalAlignment.Stretch
+            Height = 3, Fill = B(theme.Accent), HorizontalAlignment = HorizontalAlignment.Stretch
         }) { Margin = new Thickness(0, 0, 0, 12) });
 
         if (scan.TryGetProperty("stats", out var stats))
@@ -189,7 +189,7 @@ public partial class PreviewPage : Page
                 $"{files:N0} files  ·  {lines:N0} lines of code  ·  {size:F1} MB  ·  {dirs:N0} directories"))
             {
                 FontSize = 12, FontWeight = FontWeights.SemiBold,
-                Foreground = B(theme.Text).Brush, Margin = new Thickness(0, 0, 0, 8)
+                Foreground = B(theme.Text), Margin = new Thickness(0, 0, 0, 8)
             });
 
             // Language list
@@ -198,8 +198,8 @@ public partial class PreviewPage : Page
                 var p = new Paragraph { Margin = new Thickness(0, 0, 0, 4) };
                 foreach (var lang in langs.EnumerateObject().OrderByDescending(x => x.Value.GetInt32()).Take(8))
                 {
-                    p.Inlines.Add(new Run($"  {lang.Name}  ") { Foreground = B(theme.Accent).Brush, FontWeight = FontWeights.Bold });
-                    p.Inlines.Add(new Run($"{lang.Value.GetInt32()} files    ") { Foreground = B(theme.LineNum).Brush, FontSize = 10 });
+                    p.Inlines.Add(new Run($"  {lang.Name}  ") { Foreground = B(theme.Accent), FontWeight = FontWeights.Bold });
+                    p.Inlines.Add(new Run($"{lang.Value.GetInt32()} files    ") { Foreground = B(theme.LineNum), FontSize = 10 });
                 }
                 doc.Blocks.Add(p);
             }
@@ -208,7 +208,7 @@ public partial class PreviewPage : Page
         if (!string.IsNullOrWhiteSpace(opts.CoverNote))
         {
             doc.Blocks.Add(new Paragraph(new Run(opts.CoverNote))
-                { FontStyle = FontStyles.Italic, Foreground = B(theme.LineNum).Brush, Margin = new Thickness(0, 8, 0, 0) });
+                { FontStyle = FontStyles.Italic, Foreground = B(theme.LineNum), Margin = new Thickness(0, 8, 0, 0) });
         }
 
         doc.Blocks.Add(new Paragraph { Margin = new Thickness(0, 32, 0, 0) }); // spacer
@@ -219,10 +219,10 @@ public partial class PreviewPage : Page
     private static void AddFdToc(FlowDocument doc, JsonElement scan, PdfTheme theme)
     {
         doc.Blocks.Add(new Paragraph(new Run("Table of Contents"))
-            { FontSize = 18, FontWeight = FontWeights.Bold, Foreground = B(theme.Accent).Brush, Margin = new Thickness(0, 16, 0, 4) });
+            { FontSize = 18, FontWeight = FontWeights.Bold, Foreground = B(theme.Accent), Margin = new Thickness(0, 16, 0, 4) });
 
         doc.Blocks.Add(new BlockUIContainer(new System.Windows.Shapes.Rectangle
-            { Height = 1, Fill = B(theme.Border).Brush }) { Margin = new Thickness(0, 0, 0, 8) });
+            { Height = 1, Fill = B(theme.Border) }) { Margin = new Thickness(0, 0, 0, 8) });
 
         var files = GetOrderedFiles(scan);
         string? currentFolder = null;
@@ -241,15 +241,15 @@ public partial class PreviewPage : Page
                 doc.Blocks.Add(new Paragraph(new Run($"▸  {folder}/"))
                 {
                     FontWeight = FontWeights.Bold, FontSize = 10,
-                    Foreground = B(theme.Accent).Brush,
+                    Foreground = B(theme.Accent),
                     Margin     = new Thickness(0, 6, 0, 2)
                 });
             }
 
             var entry = new Paragraph { Margin = new Thickness(16, 0, 0, 1) };
-            entry.Inlines.Add(new Run(name) { FontWeight = FontWeights.SemiBold, Foreground = B(theme.Text).Brush });
+            entry.Inlines.Add(new Run(name) { FontWeight = FontWeights.SemiBold, Foreground = B(theme.Text) });
             var info = $"   {lang}  ·  {size:F1} KB" + (lines >= 0 ? $"  ·  {lines:N0} lines" : "");
-            entry.Inlines.Add(new Run(info) { FontSize = 9, Foreground = B(theme.LineNum).Brush });
+            entry.Inlines.Add(new Run(info) { FontSize = 9, Foreground = B(theme.LineNum) });
             doc.Blocks.Add(entry);
         }
 
@@ -270,14 +270,14 @@ public partial class PreviewPage : Page
         var path = file.TryGetProperty("path",          out var pa) ? pa.GetString() ?? "" : "";
 
         // File header bar
-        var headerPara = new Paragraph { Background = B(theme.AccentLight).Brush, Margin = new Thickness(0, 12, 0, 0), Padding = new Thickness(8, 4, 8, 4) };
-        headerPara.Inlines.Add(new Run(rel) { FontWeight = FontWeights.Bold, FontSize = 11, Foreground = B(theme.Heading).Brush });
+        var headerPara = new Paragraph { Background = B(theme.AccentLight), Margin = new Thickness(0, 12, 0, 0), Padding = new Thickness(8, 4, 8, 4) };
+        headerPara.Inlines.Add(new Run(rel) { FontWeight = FontWeights.Bold, FontSize = 11, Foreground = B(theme.Heading) });
         doc.Blocks.Add(headerPara);
 
         // Metadata strip
-        var metaPara = new Paragraph { Background = B(theme.CodeBg).Brush, Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 0, 0, 6) };
+        var metaPara = new Paragraph { Background = B(theme.CodeBg), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 0, 0, 6) };
         var metaText = $"{lang}   ·   {kb:F1} KB" + (lc >= 0 ? $"   ·   {lc:N0} lines" : "") + $"   ·   {mod}";
-        metaPara.Inlines.Add(new Run(metaText) { FontSize = 8, FontStyle = FontStyles.Italic, Foreground = B(theme.LineNum).Brush });
+        metaPara.Inlines.Add(new Run(metaText) { FontSize = 8, FontStyle = FontStyles.Italic, Foreground = B(theme.LineNum) });
         doc.Blocks.Add(metaPara);
 
         // Source code
@@ -303,11 +303,11 @@ public partial class PreviewPage : Page
                     {
                         FontFamily  = new FontFamily("Courier New"),
                         FontSize    = Math.Max(7, opts.FontSize - 1),
-                        Background  = B(theme.CodeBg).Brush,
-                        Foreground  = B(theme.CodeText).Brush,
+                        Background  = B(theme.CodeBg),
+                        Foreground  = B(theme.CodeText),
                         Padding     = new Thickness(8, 2, 8, 2),
                         Margin      = new Thickness(0, 0, 0, 0),
-                        BorderBrush = B(theme.Accent).Brush,
+                        BorderBrush = B(theme.Accent),
                         BorderThickness = new Thickness(3, 0, 0, 0),
                         LineHeight  = opts.FontSize + 3,
                     };
@@ -320,7 +320,7 @@ public partial class PreviewPage : Page
                         {
                             codePara.Inlines.Add(new Run($"{start + i + 1,4}  ")
                             {
-                                Foreground = B(theme.LineNum).Brush,
+                                Foreground = B(theme.LineNum),
                                 FontSize   = Math.Max(6, opts.FontSize - 1.5)
                             });
                         }
@@ -340,14 +340,14 @@ public partial class PreviewPage : Page
                 if (allLines.Length > maxLines)
                     doc.Blocks.Add(new Paragraph(
                         new Run($"[ … {allLines.Length - maxLines:N0} more lines — export to see full file ]"))
-                    { FontStyle = FontStyles.Italic, FontSize = 9, Foreground = B(theme.LineNum).Brush });
+                    { FontStyle = FontStyles.Italic, FontSize = 9, Foreground = B(theme.LineNum) });
             }
             catch { doc.Blocks.Add(new Paragraph(new Run("[ Could not read file ]")) { FontStyle = FontStyles.Italic }); }
         }
         else if (isBin)
         {
             doc.Blocks.Add(new Paragraph(new Run("[ Binary file — not shown ]"))
-                { FontStyle = FontStyles.Italic, Foreground = B(theme.LineNum).Brush });
+                { FontStyle = FontStyles.Italic, Foreground = B(theme.LineNum) });
         }
     }
 
@@ -363,15 +363,15 @@ public partial class PreviewPage : Page
             {
                 Foreground  = kind switch
                 {
-                    TokenKind.Keyword      => B(theme.Kw).Brush,
-                    TokenKind.String       => B(theme.Str).Brush,
-                    TokenKind.Number       => B(theme.Num).Brush,
-                    TokenKind.Comment      => B(theme.Cmt).Brush,
-                    TokenKind.Type         => B(theme.Type).Brush,
-                    TokenKind.Function     => B(theme.Fn).Brush,
-                    TokenKind.Operator     => B(theme.Op).Brush,
-                    TokenKind.Preprocessor => B(theme.Prep).Brush,
-                    _                      => B(theme.CodeText).Brush,
+                    TokenKind.Keyword      => B(theme.Kw),
+                    TokenKind.String       => B(theme.Str),
+                    TokenKind.Number       => B(theme.Num),
+                    TokenKind.Comment      => B(theme.Cmt),
+                    TokenKind.Type         => B(theme.Type),
+                    TokenKind.Function     => B(theme.Fn),
+                    TokenKind.Operator     => B(theme.Op),
+                    TokenKind.Preprocessor => B(theme.Prep),
+                    _                      => B(theme.CodeText),
                 },
                 FontStyle = kind == TokenKind.Comment ? FontStyles.Italic : FontStyles.Normal
             };
@@ -520,7 +520,7 @@ public partial class PreviewPage : Page
     }
 
     // Color helper — parse hex → SolidColorBrush wrapper
-    private static (SolidColorBrush Brush) B(string hex)
+    private static SolidColorBrush B(string hex)
     {
         hex = hex.TrimStart('#');
         if (hex.Length == 6)
@@ -528,9 +528,9 @@ public partial class PreviewPage : Page
             var r = Convert.ToByte(hex[..2], 16);
             var g = Convert.ToByte(hex[2..4], 16);
             var b = Convert.ToByte(hex[4..6], 16);
-            return (new SolidColorBrush(Color.FromRgb(r, g, b)));
+            return new SolidColorBrush(Color.FromRgb(r, g, b));
         }
-        return (Brushes.Black);
+        return Brushes.Black;
     }
 
     private static Color ParseWpfColor(string hex)
