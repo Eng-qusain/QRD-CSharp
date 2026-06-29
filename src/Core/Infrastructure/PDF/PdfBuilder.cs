@@ -84,8 +84,7 @@ public class PdfBuilder
         var theme = Themes.GetValueOrDefault(options.ThemeKey, Themes["default"]);
         var doc   = CreateDocument(scan.ProjectName, theme, options);
         var sec   = doc.AddSection();
-
-        // 1 — Cover
+        ApplyPageSetup(sec, options);
         AddCoverPage(sec, scan, theme);
 
         // 2 — README (if present)
@@ -148,6 +147,7 @@ public class PdfBuilder
             var theme = Themes.GetValueOrDefault(options.ThemeKey, Themes["default"]);
             var doc   = CreateDocument(folder.Name, theme, options);
             var sec   = doc.AddSection();
+            ApplyPageSetup(sec, options);
             AddCoverPage(sec, scan, theme, subtitle: $"Module: {folder.Name}");
             AddFileTreeSection(sec, scan, theme, rootNode: folder);
 
@@ -175,10 +175,9 @@ public class PdfBuilder
         doc.Info.Title  = title;
         doc.Info.Author = "QRD — Quantum Repo Documenter";
 
-        doc.DefaultPageSetup.TopMargin    = "1.8cm";
-        doc.DefaultPageSetup.BottomMargin = "2.0cm";
-        doc.DefaultPageSetup.LeftMargin   = "2.0cm";
-        doc.DefaultPageSetup.RightMargin  = "2.0cm";
+        // MigraDoc forbids mutating DefaultPageSetup directly — margins/orientation
+        // must be applied to each Section's PageSetup (clone of DefaultPageSetup).
+        // We store the desired values in the options and apply them after AddSection().
 
         var normal = doc.Styles["Normal"]!;
         normal.Font.Name  = "Arial";
@@ -224,7 +223,20 @@ public class PdfBuilder
         return doc;
     }
 
-    // ── 1. Cover page ─────────────────────────────────────────────────────────
+    /// <summary>
+    /// MigraDoc prohibits mutating DefaultPageSetup directly.
+    /// Call this immediately after every doc.AddSection() to apply margins/orientation.
+    /// </summary>
+    private static void ApplyPageSetup(Section sec, ExportOptions options)
+    {
+        sec.PageSetup = sec.Document.DefaultPageSetup.Clone();
+        sec.PageSetup.TopMargin    = "1.8cm";
+        sec.PageSetup.BottomMargin = "2.0cm";
+        sec.PageSetup.LeftMargin   = "2.0cm";
+        sec.PageSetup.RightMargin  = "2.0cm";
+        if (options.Orientation == PdfOrientation.Landscape)
+            sec.PageSetup.Orientation = Orientation.Landscape;
+    }
 
     private static void AddCoverPage(Section sec, ProjectScan scan, PdfTheme theme, string? subtitle = null)
     {
