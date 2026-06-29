@@ -15,16 +15,13 @@
                 <StackPanel>
                     <TextBlock Text="AI Configuration" FontWeight="Bold" FontSize="15"
                                Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
-
                     <TextBlock Text="Anthropic API Key" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <TextBox x:Name="AnthropicKeyBox" Padding="10,8" Margin="0,0,0,12"
                              BorderBrush="{StaticResource BorderBrush}"
                              ToolTip="Get your key at console.anthropic.com"/>
-
                     <TextBlock Text="OpenAI API Key (fallback)" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <TextBox x:Name="OpenAiKeyBox" Padding="10,8" Margin="0,0,0,12"
                              BorderBrush="{StaticResource BorderBrush}"/>
-
                     <TextBlock Text="AI Model" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <ComboBox x:Name="ModelCombo" Margin="0,0,0,12">
                         <ComboBoxItem Content="claude-3-5-haiku-20241022" IsSelected="True"/>
@@ -32,11 +29,9 @@
                         <ComboBoxItem Content="claude-opus-4-6"/>
                         <ComboBoxItem Content="gpt-4o-mini"/>
                     </ComboBox>
-
-                    <TextBlock Text="Note: API keys are stored in appsettings.json in the app directory."
+                    <TextBlock Text="API keys are stored in appsettings.json in the app directory."
                                FontSize="11" Foreground="{StaticResource MutedBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,12"/>
-
                     <Button Content="Save AI Settings" Style="{StaticResource PrimaryButton}"
                             HorizontalAlignment="Left" Click="SaveAiSettings_Click"/>
                 </StackPanel>
@@ -49,7 +44,6 @@
                 <StackPanel>
                     <TextBlock Text="Paths" FontWeight="Bold" FontSize="15"
                                Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
-
                     <TextBlock Text="Default Output Folder" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <Grid Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
@@ -62,7 +56,6 @@
                                 Style="{StaticResource SecondaryButton}"
                                 Click="BrowseOutputDir_Click"/>
                     </Grid>
-
                     <Button Content="Save Path Settings" Style="{StaticResource PrimaryButton}"
                             HorizontalAlignment="Left" Click="SavePathSettings_Click"/>
                 </StackPanel>
@@ -75,20 +68,149 @@
                 <StackPanel>
                     <TextBlock Text="Performance" FontWeight="Bold" FontSize="15"
                                Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
-
                     <TextBlock Text="Max Concurrent AI Workers" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <Slider x:Name="WorkerSlider" Minimum="1" Maximum="8" Value="3"
                             TickPlacement="BottomRight" TickFrequency="1"
                             IsSnapToTickEnabled="True" Margin="0,0,0,4"/>
                     <TextBlock x:Name="WorkerLabel" Text="Workers: 3"
                                Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-
                     <TextBlock Text="Max File Size (MB)" FontWeight="SemiBold" Margin="0,12,0,4"/>
                     <Slider x:Name="MaxFileSizeSlider" Minimum="1" Maximum="200" Value="50"
                             TickPlacement="BottomRight" TickFrequency="10"
                             IsSnapToTickEnabled="True" Margin="0,0,0,4"/>
                     <TextBlock x:Name="MaxFileSizeLabel" Text="50 MB"
                                Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ══ Language Extensions ══════════════════════════════════════ -->
+            <Border Padding="20" Margin="0,0,0,16" CornerRadius="8"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Language Extensions" FontWeight="Bold" FontSize="15"
+                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                    <TextBlock FontSize="11" Foreground="{StaticResource MutedBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,12">
+                        Add syntax highlighting for any language not built-in.
+                        Each definition is saved to appsettings.json and applied
+                        in both Preview and Export automatically.
+                    </TextBlock>
+
+                    <!-- Example hint -->
+                    <Border Background="#0d1117" CornerRadius="6" Padding="12"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Example — add Lua support:"
+                                       FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#58a6ff" Margin="0,0,0,6"/>
+                            <TextBlock FontFamily="Courier New" FontSize="10"
+                                       Foreground="#c9d1d9" TextWrapping="Wrap"
+                                       xml:space="preserve">Name:        Lua
+Extensions:  .lua,.luac
+LineComment: --
+Keywords:    and,break,do,else,elseif,end,false,
+             for,function,goto,if,in,local,nil,
+             not,or,repeat,return,then,true,
+             until,while
+TypePattern: \b[A-Z][A-Za-z0-9_]*\b</TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Form for adding a new language -->
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="110"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Name *"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,4"/>
+                        <TextBox   Grid.Row="0" Grid.Column="1" x:Name="LangNameBox"
+                                   Padding="8,6" Margin="0,4" BorderBrush="{StaticResource BorderBrush}"
+                                   ToolTip="Display name e.g. Lua"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Extensions *"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,4"/>
+                        <TextBox   Grid.Row="1" Grid.Column="1" x:Name="LangExtBox"
+                                   Padding="8,6" Margin="0,4" BorderBrush="{StaticResource BorderBrush}"
+                                   ToolTip="Comma-separated: .lua,.luac"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Line Comment"
+                                   VerticalAlignment="Center" Margin="0,4"/>
+                        <TextBox   Grid.Row="2" Grid.Column="1" x:Name="LangLineCommentBox"
+                                   Padding="8,6" Margin="0,4" BorderBrush="{StaticResource BorderBrush}"
+                                   ToolTip="e.g. //  or  --  or  #"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Block Comment"
+                                   VerticalAlignment="Center" Margin="0,4"/>
+                        <Grid Grid.Row="3" Grid.Column="1" Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="LangBlockStartBox" Grid.Column="0" Padding="8,6"
+                                     BorderBrush="{StaticResource BorderBrush}" ToolTip="Start e.g. /*"/>
+                            <TextBlock Grid.Column="1" Text=" → " VerticalAlignment="Center" Margin="4,0"/>
+                            <TextBox x:Name="LangBlockEndBox" Grid.Column="2" Padding="8,6"
+                                     BorderBrush="{StaticResource BorderBrush}" ToolTip="End e.g. */"/>
+                        </Grid>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Keywords"
+                                   VerticalAlignment="Top" Margin="0,8,0,0"/>
+                        <TextBox   Grid.Row="4" Grid.Column="1" x:Name="LangKeywordsBox"
+                                   Padding="8,6" Margin="0,4" Height="64"
+                                   AcceptsReturn="True" TextWrapping="Wrap"
+                                   VerticalScrollBarVisibility="Auto"
+                                   BorderBrush="{StaticResource BorderBrush}"
+                                   ToolTip="Comma-separated keyword list"/>
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="String Delimiters"
+                                   VerticalAlignment="Center" Margin="0,4"/>
+                        <TextBox   Grid.Row="5" Grid.Column="1" x:Name="LangStringBox"
+                                   Padding="8,6" Margin="0,4" BorderBrush="{StaticResource BorderBrush}"
+                                   Text="&quot;,'" ToolTip="Characters used for strings e.g. &quot;,'"/>
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Type Pattern"
+                                   VerticalAlignment="Center" Margin="0,4"/>
+                        <TextBox   Grid.Row="6" Grid.Column="1" x:Name="LangTypePatBox"
+                                   Padding="8,6" Margin="0,4" BorderBrush="{StaticResource BorderBrush}"
+                                   Text="\b[A-Z][A-Za-z0-9_]*\b"
+                                   ToolTip="Regex for type names (optional)"/>
+
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Function Pattern"
+                                   VerticalAlignment="Center" Margin="0,4"/>
+                        <TextBox   Grid.Row="7" Grid.Column="1" x:Name="LangFnPatBox"
+                                   Padding="8,6" Margin="0,4" BorderBrush="{StaticResource BorderBrush}"
+                                   ToolTip="Regex for function names (optional)"/>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="＋  Add Language" Style="{StaticResource PrimaryButton}"
+                                HorizontalAlignment="Left" Click="AddLanguage_Click" Margin="0,0,8,0"/>
+                        <Button Content="↺  Reload from file" Style="{StaticResource SecondaryButton}"
+                                Click="ReloadLanguages_Click"/>
+                    </StackPanel>
+
+                    <!-- Installed languages list -->
+                    <TextBlock Text="Installed Language Extensions:" FontWeight="SemiBold"
+                               Margin="0,16,0,6"/>
+                    <ListBox x:Name="LangList" Height="120" Margin="0,0,0,8"
+                             Background="{StaticResource BgBrush}"
+                             BorderBrush="{StaticResource BorderBrush}"/>
+                    <Button Content="🗑  Remove Selected" Style="{StaticResource SecondaryButton}"
+                            HorizontalAlignment="Left" Click="RemoveLanguage_Click"/>
                 </StackPanel>
             </Border>
 

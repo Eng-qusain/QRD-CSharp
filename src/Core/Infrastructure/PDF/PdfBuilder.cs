@@ -1106,6 +1106,7 @@ public class ExportOptions
     public PdfThemeName   Theme              { get; init; } = PdfThemeName.Default;
     public int            FontSize           { get; init; } = 9;
     public List<string>   SelectedFiles      { get; init; } = [];
+    public string         CoverNote          { get; init; } = "";
 
     public string ThemeKey => Theme switch
     {

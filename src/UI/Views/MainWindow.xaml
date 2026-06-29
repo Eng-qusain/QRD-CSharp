@@ -35,6 +35,10 @@
                             Click="NavScanner_Click">
                         <TextBlock>🔍  Scanner</TextBlock>
                     </Button>
+                    <Button x:Name="NavPreview" Style="{StaticResource NavButton}"
+                            Click="NavPreview_Click">
+                        <TextBlock>👁  Preview &amp; Format</TextBlock>
+                    </Button>
                     <Button x:Name="NavExport" Style="{StaticResource NavButton}"
                             Click="NavExport_Click">
                         <TextBlock>📄  Export</TextBlock>

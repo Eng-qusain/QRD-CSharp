@@ -70,6 +70,7 @@
     <Compile Update="src\Core\Infrastructure\Storage\TempManager.cs" ExcludeFromWpfTempProject="true" />
     <Compile Update="src\Core\Services\ExportOrchestratorService.cs" ExcludeFromWpfTempProject="true" />
     <Compile Update="src\Core\Services\ProjectScannerService.cs"     ExcludeFromWpfTempProject="true" />
+    <Compile Update="src\Core\Infrastructure\Syntax\LanguageExtensionManager.cs" ExcludeFromWpfTempProject="true" />
   </ItemGroup>
 
 </Project>
