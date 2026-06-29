@@ -107,7 +107,7 @@ public partial class PreviewPage : Page
         {
             var opts    = BuildOptions();
             var theme   = PdfBuilder.Themes.GetValueOrDefault(opts.ThemeKey, PdfBuilder.Themes["default"]);
-            var doc     = await Task.Run(() => BuildFlowDocument(_lastScan!.Value, opts, theme, ct), ct);
+            var doc     = await Dispatcher.InvokeAsync(() => BuildFlowDocument(_lastScan!.Value, opts, theme, ct));
 
             if (ct.IsCancellationRequested) return;
 
