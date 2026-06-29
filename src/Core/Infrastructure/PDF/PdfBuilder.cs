@@ -229,7 +229,8 @@ public class PdfBuilder
     /// </summary>
     private static void ApplyPageSetup(Section sec, ExportOptions options)
     {
-        sec.PageSetup = sec.Document.DefaultPageSetup.Clone()!;
+        // Assign margin and orientation directly on the section's own PageSetup —
+        // MigraDoc creates a fresh PageSetup for each Section automatically.
         sec.PageSetup.TopMargin    = "1.8cm";
         sec.PageSetup.BottomMargin = "2.0cm";
         sec.PageSetup.LeftMargin   = "2.0cm";
