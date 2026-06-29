@@ -564,7 +564,7 @@ public class PdfBuilder
         row.Cells[1].AddParagraph(value);
     }
 
-    private static void StyleCell(Cell cell, string text, bool bold, Color color)
+    private static void StyleCell(Cell cell, string text, bool bold, MigraDoc.DocumentObjectModel.Color color)
     {
         var p = cell.AddParagraph(text);
         p.Format.Font.Bold  = bold;
