@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("QRD")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c2166c1a6f4b9ea51d54e59376552cab6ae356b1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+924ec1aec65efc3e10b3a8fc7846b264ed36f0ec")]
 [assembly: System.Reflection.AssemblyProductAttribute("QRD")]
 [assembly: System.Reflection.AssemblyTitleAttribute("QRD")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
