@@ -12,6 +12,8 @@ using QRD.Utils;
 using MessageBox   = System.Windows.MessageBox;
 using Color        = System.Windows.Media.Color;
 using Orientation  = System.Windows.Controls.Orientation;
+using FontFamily   = System.Windows.Media.FontFamily;
+using Brushes      = System.Windows.Media.Brushes;
 
 namespace QRD.UI.Views;
 
@@ -175,7 +177,7 @@ public partial class PreviewPage : Page
         // Rule
         doc.Blocks.Add(new BlockUIContainer(new System.Windows.Shapes.Rectangle
         {
-            Height = 3, Fill = B(theme.Accent), HorizontalAlignment = HorizontalAlignment.Stretch
+            Height = 3, Fill = B(theme.Accent), HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch
         }) { Margin = new Thickness(0, 0, 0, 12) });
 
         if (scan.TryGetProperty("stats", out var stats))
