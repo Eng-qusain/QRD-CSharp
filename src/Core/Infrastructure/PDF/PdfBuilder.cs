@@ -229,13 +229,13 @@ public class PdfBuilder
     /// </summary>
     private static void ApplyPageSetup(Section sec, ExportOptions options)
     {
-        sec.PageSetup = sec.Document.DefaultPageSetup.Clone();
+        sec.PageSetup = sec.Document.DefaultPageSetup.Clone()!;
         sec.PageSetup.TopMargin    = "1.8cm";
         sec.PageSetup.BottomMargin = "2.0cm";
         sec.PageSetup.LeftMargin   = "2.0cm";
         sec.PageSetup.RightMargin  = "2.0cm";
         if (options.Orientation == PdfOrientation.Landscape)
-            sec.PageSetup.Orientation = Orientation.Landscape;
+            sec.PageSetup.Orientation = MigraDoc.DocumentObjectModel.Orientation.Landscape;
     }
 
     private static void AddCoverPage(Section sec, ProjectScan scan, PdfTheme theme, string? subtitle = null)
